@@ -1,0 +1,16 @@
+{
+  "name": "每日饮食记录",
+  "short_name": "饮食记录",
+  "description": "记录每日摄入、体重、蛋白质、饮水",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f6f7fb",
+  "theme_color": "#0a84ff",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'> </text></svg>",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

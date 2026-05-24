@@ -1,0 +1,2991 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0a84ff">
+  <title>每日饮食记录</title>
+  <style>
+    :root {
+      --bg: #f6f7fb;
+      --panel: rgba(255, 255, 255, 0.78);
+      --text: #1d1d1f;
+      --muted: #69707d;
+      --soft: #8a94a6;
+      --line: rgba(88, 96, 115, 0.16);
+      --blue: #0a84ff;
+      --blue-deep: #0066d6;
+      --green: #30d158;
+      --orange: #ff9f0a;
+      --red: #ff453a;
+      --violet: #5e5ce6;
+      --glass: rgba(255, 255, 255, 0.72);
+      --shadow: 0 24px 70px rgba(30, 41, 59, 0.12);
+      --shadow-soft: 0 10px 28px rgba(30, 41, 59, 0.08);
+      --radius: 24px;
+      --chart-bg: #fbfbfd;
+      --input-bg: rgba(255, 255, 255, 0.86);
+      --btn-secondary-bg: rgba(236, 239, 245, 0.94);
+      --toast-bg: rgba(255, 255, 255, 0.96);
+    }
+
+    [data-theme="dark"] {
+      --bg: #1c1c1e;
+      --panel: rgba(44, 44, 46, 0.82);
+      --text: #f5f5f7;
+      --muted: #98989d;
+      --soft: #636366;
+      --line: rgba(255, 255, 255, 0.12);
+      --blue: #0a84ff;
+      --blue-deep: #409cff;
+      --green: #30d158;
+      --orange: #ff9f0a;
+      --red: #ff453a;
+      --shadow: 0 24px 70px rgba(0, 0, 0, 0.4);
+      --shadow-soft: 0 10px 28px rgba(0, 0, 0, 0.3);
+      --chart-bg: #2c2c2e;
+      --input-bg: rgba(58, 58, 60, 0.86);
+      --btn-secondary-bg: rgba(58, 58, 60, 0.94);
+      --toast-bg: rgba(44, 44, 46, 0.96);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      overflow-x: hidden;
+      background:
+        radial-gradient(circle at 14% 8%, rgba(10, 132, 255, 0.15), transparent 30%),
+        radial-gradient(circle at 86% 0%, rgba(48, 209, 88, 0.13), transparent 28%),
+        linear-gradient(180deg, #fbfcff 0%, var(--bg) 44%, #eef2f8 100%);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif;
+      letter-spacing: 0;
+      transition: background 0.3s ease, color 0.3s ease;
+    }
+
+    [data-theme="dark"] body {
+      background:
+        radial-gradient(circle at 14% 8%, rgba(10, 132, 255, 0.08), transparent 30%),
+        radial-gradient(circle at 86% 0%, rgba(48, 209, 88, 0.06), transparent 28%),
+        linear-gradient(180deg, #1c1c1e 0%, var(--bg) 44%, #000 100%);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.42) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.42) 1px, transparent 1px);
+      background-size: 42px 42px;
+      mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.5), transparent 58%);
+      pointer-events: none;
+    }
+
+    [data-theme="dark"] body::before {
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+    }
+
+    button,
+    input,
+    textarea {
+      font: inherit;
+      min-width: 0;
+    }
+
+    .app {
+      width: calc(100% - 32px);
+      max-width: 1220px;
+      margin: 0 auto;
+      padding: 34px 0 48px;
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+      align-items: stretch;
+      gap: 18px;
+      margin-bottom: 20px;
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: 30px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(26px);
+      min-width: 0;
+    }
+
+    .hero-copy {
+      display: grid;
+      align-content: center;
+      min-width: 0;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(30px, 4vw, 46px);
+      line-height: 1.1;
+      font-weight: 780;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .today-pill {
+      width: fit-content;
+      margin-top: 16px;
+      padding: 9px 13px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--text);
+      background: var(--btn-secondary-bg);
+      font-size: 14px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .today-summary {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      align-content: start;
+      min-width: 0;
+    }
+
+    .summary-card {
+      min-height: 96px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: var(--panel);
+      box-shadow: var(--shadow-soft);
+      overflow: hidden;
+    }
+
+    .summary-card.wide {
+      grid-column: 1 / -1;
+      min-height: auto;
+    }
+
+    .summary-label {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 760;
+    }
+
+    .summary-value {
+      display: block;
+      margin-top: 7px;
+      font-size: 24px;
+      line-height: 1.08;
+      font-weight: 800;
+      overflow-wrap: anywhere;
+    }
+
+    .summary-note {
+      display: block;
+      margin-top: 7px;
+      color: var(--soft);
+      font-size: 12px;
+      line-height: 1.45;
+      font-weight: 650;
+      overflow-wrap: anywhere;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(316px, 398px) minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid rgba(255, 255, 255, 0.78);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(24px);
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    .panel-inner {
+      padding: 22px;
+    }
+
+    .panel h2 {
+      margin: 0 0 16px;
+      font-size: 21px;
+      line-height: 1.25;
+      font-weight: 780;
+    }
+
+    .form {
+      display: grid;
+      gap: 14px;
+    }
+
+    label {
+      display: grid;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.2;
+      font-weight: 720;
+    }
+
+    input,
+    textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--input-bg);
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    }
+
+    input {
+      height: 48px;
+      padding: 0 14px;
+    }
+
+    textarea {
+      min-height: 142px;
+      resize: vertical;
+      padding: 14px;
+      line-height: 1.55;
+    }
+
+    input:focus,
+    textarea:focus {
+      border-color: var(--blue);
+      background: #fff;
+      box-shadow: 0 0 0 4px rgba(10, 132, 255, 0.13);
+    }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      min-height: 46px;
+      border: 0;
+      border-radius: 15px;
+      padding: 0 18px;
+      cursor: pointer;
+      font-weight: 760;
+      color: #fff;
+      background: linear-gradient(180deg, #2f9bff, var(--blue-deep));
+      box-shadow: 0 12px 22px rgba(10, 132, 255, 0.24);
+      transition: transform 0.16s ease, opacity 0.16s ease, box-shadow 0.16s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 15px 28px rgba(10, 132, 255, 0.27);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+      opacity: 0.82;
+    }
+
+    .btn.secondary {
+      color: var(--text);
+      background: var(--btn-secondary-bg);
+      box-shadow: inset 0 0 0 1px rgba(88, 96, 115, 0.06);
+    }
+
+    .message {
+      min-height: 22px;
+      margin: 2px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .message.error {
+      color: var(--red);
+    }
+
+    .message.success {
+      color: #1f8a3b;
+    }
+
+    .toast-container {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 100;
+      display: grid;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .toast {
+      pointer-events: auto;
+      padding: 12px 18px;
+      border-radius: 14px;
+      background: var(--toast-bg);
+      border: 1px solid rgba(255, 255, 255, 0.78);
+      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.14);
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.5;
+      max-width: 340px;
+      opacity: 0;
+      transform: translateX(20px);
+      animation: toastIn 0.25s ease forwards;
+    }
+
+    .toast.toast-out {
+      animation: toastOut 0.2s ease forwards;
+    }
+
+    .toast.error {
+      border-left: 4px solid var(--red);
+    }
+
+    .toast.success {
+      border-left: 4px solid var(--green);
+    }
+
+    @keyframes toastIn {
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    @keyframes toastOut {
+      to { opacity: 0; transform: translateX(20px); }
+    }
+
+    .theme-toggle {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      z-index: 30;
+      width: 40px;
+      height: 40px;
+      border: 0;
+      border-radius: 50%;
+      cursor: pointer;
+      background: var(--btn-secondary-bg);
+      color: var(--text);
+      font-size: 18px;
+      line-height: 1;
+      box-shadow: var(--shadow-soft);
+      transition: transform 0.16s ease, background 0.3s ease;
+    }
+
+    .theme-toggle:hover {
+      transform: translateY(-1px);
+    }
+
+    .target-settings {
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+    }
+
+    .target-settings h3 {
+      margin: 0 0 12px;
+      font-size: 15px;
+      font-weight: 760;
+    }
+
+    .target-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .target-legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 26px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.7);
+    }
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .legend-dot.good {
+      background: #34c759;
+    }
+
+    .legend-dot.warn {
+      background: #ff9500;
+    }
+
+    .legend-dot.low {
+      background: #ff3b30;
+    }
+
+    .legend-dot.none {
+      background: #c7c7cc;
+    }
+
+    .target-progress {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .target-progress-card {
+      padding: 13px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.74);
+    }
+
+    .target-progress-card span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .target-progress-card strong {
+      display: block;
+      margin-top: 6px;
+      font-size: 22px;
+      line-height: 1.1;
+    }
+
+    .target-progress-track {
+      height: 8px;
+      margin-top: 10px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #e7ebf2;
+    }
+
+    .target-progress-fill {
+      height: 100%;
+      border-radius: inherit;
+    }
+
+    .stack {
+      display: grid;
+      gap: 18px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+    }
+
+    .stat {
+      min-height: 94px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: var(--panel);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .stat-name {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .stat-value {
+      margin-top: 8px;
+      font-size: clamp(22px, 3vw, 28px);
+      line-height: 1.1;
+      font-weight: 760;
+      overflow-wrap: anywhere;
+    }
+
+    .stat-unit {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .stat-note {
+      display: inline-flex;
+      width: fit-content;
+      margin-top: 10px;
+      padding: 5px 8px;
+      border-radius: 999px;
+      background: var(--btn-secondary-bg);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .charts {
+      display: grid;
+      gap: 14px;
+    }
+
+    .chart-card {
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: var(--panel);
+      overflow: hidden;
+    }
+
+    .chart-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px 0;
+    }
+
+    .chart-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0;
+      font-size: 15px;
+      font-weight: 760;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .chart-note {
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .chart-range-btns {
+      display: flex;
+      gap: 4px;
+    }
+
+    .range-btn {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 4px 10px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .range-btn:hover {
+      background: var(--btn-secondary-bg);
+    }
+
+    .range-btn.active {
+      background: var(--blue);
+      color: #fff;
+      border-color: var(--blue);
+    }
+
+    .trend-summary {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      padding: 14px 16px 0;
+    }
+
+    .trend-chip {
+      padding: 12px;
+      border-radius: 16px;
+      background: var(--btn-secondary-bg);
+    }
+
+    .trend-chip span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .trend-chip strong {
+      display: block;
+      margin-top: 5px;
+      font-size: 18px;
+      line-height: 1.1;
+      overflow-wrap: anywhere;
+    }
+
+    .legend {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      padding: 10px 16px 0;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .legend-line {
+      width: 22px;
+      height: 3px;
+      border-radius: 999px;
+      display: inline-block;
+      background: var(--blue);
+    }
+
+    .chart-frame {
+      padding: 8px 14px 16px;
+    }
+
+    svg {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      height: auto;
+    }
+
+    .hover-point {
+      outline: none;
+    }
+
+    .chart-hover-region {
+      fill: transparent;
+      cursor: crosshair;
+    }
+
+    .chart-focus-line,
+    .chart-focus-dot,
+    .point-tooltip {
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.12s ease;
+    }
+
+    .hover-point:hover .chart-focus-line,
+    .hover-point:hover .chart-focus-dot,
+    .hover-point:hover .point-tooltip,
+    .hover-point:focus .chart-focus-line,
+    .hover-point:focus .chart-focus-dot,
+    .hover-point:focus .point-tooltip {
+      opacity: 1;
+    }
+
+    .point-tooltip rect {
+      fill: var(--text);
+      stroke: var(--line);
+    }
+
+    .point-tooltip text {
+      fill: var(--bg);
+      font-size: 11px;
+    }
+
+    .point-tooltip .tooltip-value {
+      font-size: 13px;
+      font-weight: 760;
+    }
+
+    .calendar-tools {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .month-title {
+      font-size: 18px;
+      font-weight: 760;
+    }
+
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      border: 0;
+      border-radius: 50%;
+      cursor: pointer;
+      background: var(--btn-secondary-bg);
+      color: var(--text);
+      font-size: 22px;
+      line-height: 1;
+      transition: transform 0.16s ease, background 0.16s ease;
+    }
+
+    .icon-btn:hover {
+      background: #fff;
+      transform: translateY(-1px);
+    }
+
+    .calendar {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .weekday {
+      color: var(--muted);
+      text-align: center;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 0;
+    }
+
+    .day {
+      position: relative;
+      aspect-ratio: 1;
+      min-width: 0;
+      border: 1px solid transparent;
+      border-radius: 15px;
+      background: transparent;
+      cursor: pointer;
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 700;
+      transition: transform 0.14s ease, background 0.14s ease, border-color 0.14s ease;
+    }
+
+    .day:hover {
+      background: rgba(255, 255, 255, 0.72);
+      transform: translateY(-1px);
+    }
+
+    .day.empty {
+      cursor: default;
+    }
+
+    .day.empty:hover {
+      background: transparent;
+    }
+
+    .day.has-record {
+      background: rgba(232, 244, 255, 0.94);
+      border-color: rgba(10, 132, 255, 0.24);
+      color: #005fc7;
+    }
+
+    .day-target-dots {
+      position: absolute;
+      left: 50%;
+      bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transform: translateX(-50%);
+      pointer-events: none;
+    }
+
+    .target-marker {
+      width: 8px;
+      height: 8px;
+      background: #d1d1d6;
+      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9);
+    }
+
+    .target-marker.metric-intake {
+      border-radius: 50%;
+    }
+
+    .target-marker.metric-protein {
+      border-radius: 2px;
+      transform: rotate(45deg);
+    }
+
+    .target-status-good,
+    .target-progress-fill.target-status-good {
+      background: #34c759;
+    }
+
+    .target-status-warn,
+    .target-progress-fill.target-status-warn {
+      background: #ff9500;
+    }
+
+    .target-status-low,
+    .target-progress-fill.target-status-low {
+      background: #ff3b30;
+    }
+
+    .target-status-none,
+    .target-progress-fill.target-status-none {
+      background: #c7c7cc;
+    }
+
+    .day.selected {
+      background: linear-gradient(180deg, #2f9bff, var(--blue-deep));
+      color: #fff;
+      box-shadow: 0 12px 22px rgba(10, 132, 255, 0.24);
+    }
+
+    .day.selected .target-marker {
+      box-shadow: 0 0 0 2px var(--blue);
+    }
+
+    .day.today:not(.selected)::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: 7px;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--blue);
+      transform: translateX(-50%);
+    }
+
+    .review {
+      margin-top: 16px;
+      padding: 16px;
+      border-radius: 20px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+    }
+
+    .review-date {
+      margin: 0 0 10px;
+      font-size: 15px;
+      font-weight: 760;
+    }
+
+    .review-values {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+      gap: 8px;
+    }
+
+    .mini {
+      padding: 12px;
+      border-radius: 16px;
+      background: var(--btn-secondary-bg);
+    }
+
+    .mini span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .mini strong {
+      display: block;
+      margin-top: 6px;
+      font-size: 18px;
+      overflow-wrap: anywhere;
+    }
+
+    .import-help {
+      margin: 0 0 10px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .import-preview {
+      display: none;
+      margin-top: 12px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--panel);
+    }
+
+    .import-preview.show {
+      display: grid;
+      gap: 10px;
+    }
+
+    .import-preview-title {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.4;
+    }
+
+    .import-preview-list {
+      display: grid;
+      gap: 8px;
+      max-height: 220px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .import-preview-row {
+      display: grid;
+      grid-template-columns: minmax(104px, 1fr) minmax(88px, 1fr) minmax(78px, auto);
+      align-items: center;
+      gap: 8px;
+      padding: 9px 10px;
+      border-radius: 14px;
+      background: var(--btn-secondary-bg);
+      font-size: 13px;
+    }
+
+    .import-preview-row strong {
+      display: block;
+      color: var(--text);
+      font-size: 15px;
+    }
+
+    .import-preview-badge {
+      justify-self: end;
+      padding: 5px 8px;
+      border-radius: 999px;
+      color: var(--muted);
+      background: var(--btn-secondary-bg);
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .records {
+      display: grid;
+      gap: 10px;
+      max-height: 420px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .record {
+      display: grid;
+      grid-template-columns: minmax(110px, 1.2fr) repeat(4, minmax(78px, 1fr)) auto;
+      align-items: center;
+      gap: 10px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--panel);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .record-date {
+      font-weight: 760;
+    }
+
+    .record-value {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .record-value strong {
+      display: block;
+      color: var(--text);
+      font-size: 15px;
+    }
+
+    .link-btn {
+      border: 0;
+      border-radius: 14px;
+      padding: 9px 12px;
+      cursor: pointer;
+      color: var(--blue);
+      background: var(--btn-secondary-bg);
+      font-weight: 700;
+      transition: background 0.16s ease, transform 0.16s ease;
+    }
+
+    .link-btn:hover {
+      background: #fff;
+      transform: translateY(-1px);
+    }
+
+    .delete-btn {
+      color: var(--red);
+    }
+
+    .delete-btn:hover {
+      background: rgba(255, 69, 58, 0.1);
+    }
+
+    .record-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .empty-state {
+      padding: 28px 18px;
+      border: 1px dashed var(--line);
+      border-radius: 20px;
+      color: var(--muted);
+      text-align: center;
+      background: var(--input-bg);
+      line-height: 1.6;
+    }
+
+    @keyframes savePulse {
+      0% { box-shadow: 0 0 0 0 rgba(48, 209, 88, 0.4); }
+      70% { box-shadow: 0 0 0 12px rgba(48, 209, 88, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(48, 209, 88, 0); }
+    }
+
+    .save-pulse {
+      animation: savePulse 0.5s ease;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(8px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .calendar-slide {
+      animation: slideIn 0.2s ease;
+    }
+
+    @keyframes numberPop {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.08); }
+      100% { transform: scale(1); }
+    }
+
+    .number-pop {
+      animation: numberPop 0.3s ease;
+    }
+
+    .diet-pet {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      z-index: 20;
+      display: grid;
+      justify-items: end;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .pet-speech {
+      width: min(260px, calc(100vw - 44px));
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--toast-bg);
+      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.14);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.55;
+      opacity: 0;
+      transform: translateY(8px) scale(0.98);
+      transition: opacity 0.18s ease, transform 0.18s ease;
+      pointer-events: none;
+    }
+
+    .pet-speech.show {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+
+    .pet-button {
+      position: relative;
+      width: 96px;
+      height: 96px;
+      padding: 0;
+      border: 0;
+      border-radius: 28px;
+      background: transparent;
+      cursor: pointer;
+      pointer-events: auto;
+      transition: transform 0.16s ease;
+    }
+
+    .pet-button:hover,
+    .pet-button:focus-visible,
+    .pet-button.is-talking {
+      transform: translateY(-3px);
+      outline: none;
+    }
+
+    .pet-art {
+      width: 100%;
+      height: 100%;
+      display: block;
+      overflow: visible;
+      filter: drop-shadow(0 12px 16px rgba(0, 0, 0, 0.18));
+    }
+
+    .pet-button.is-talking .pet-art {
+      animation: petBounce 0.42s ease;
+    }
+
+    .fox-outline {
+      stroke: #3f0a7b;
+      stroke-width: 4.6;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    [data-theme="dark"] .fox-outline {
+      stroke: #c9a0ff;
+    }
+
+    [data-theme="dark"] .fox-purple {
+      fill: #c9a0ff;
+    }
+
+    .fox-orange {
+      fill: #ff9f2d;
+    }
+
+    .fox-white {
+      fill: #fffafd;
+    }
+
+    .fox-pink {
+      fill: #ff6f8e;
+    }
+
+    .fox-heart {
+      fill: #f72576;
+    }
+
+    .fox-heart-shadow {
+      fill: #c91867;
+      opacity: 0.72;
+    }
+
+    .fox-purple {
+      fill: #3f0a7b;
+    }
+
+    .fox-pad {
+      fill: #ff706d;
+    }
+
+    .fox-shadow {
+      fill: rgba(29, 29, 31, 0.22);
+    }
+
+    [data-theme="dark"] .fox-shadow {
+      fill: rgba(0, 0, 0, 0.5);
+    }
+
+    @keyframes petBounce {
+      0% {
+        transform: scale(1);
+      }
+
+      45% {
+        transform: scale(1.08) rotate(-2deg);
+      }
+
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    .pet-ear,
+    .pet-foot,
+    .pet-eye,
+    .pet-mouth,
+    .pet-cheek {
+      position: absolute;
+      display: block;
+    }
+
+    .pet-ear {
+      top: 6px;
+      width: 14px;
+      height: 17px;
+      border-radius: 50% 50% 45% 45%;
+      background: #48c995;
+    }
+
+    .pet-ear.left {
+      left: 14px;
+      transform: rotate(-28deg);
+    }
+
+    .pet-ear.right {
+      right: 14px;
+      transform: rotate(28deg);
+    }
+
+    .pet-face {
+      position: absolute;
+      inset: 13px 11px 10px;
+      border-radius: 48% 48% 44% 44%;
+      background: #f8fff8;
+    }
+
+    .pet-eye {
+      top: 28px;
+      width: 6px;
+      height: 7px;
+      border-radius: 50%;
+      background: #1d1d1f;
+    }
+
+    .pet-eye.left {
+      left: 22px;
+    }
+
+    .pet-eye.right {
+      right: 22px;
+    }
+
+    .pet-cheek {
+      top: 36px;
+      width: 7px;
+      height: 5px;
+      border-radius: 999px;
+      background: #ffb7a8;
+      opacity: 0.75;
+    }
+
+    .pet-cheek.left {
+      left: 15px;
+    }
+
+    .pet-cheek.right {
+      right: 15px;
+    }
+
+    .pet-mouth {
+      left: 50%;
+      top: 37px;
+      width: 11px;
+      height: 6px;
+      border-bottom: 2px solid #1d1d1f;
+      border-radius: 0 0 999px 999px;
+      transform: translateX(-50%);
+    }
+
+    .pet-foot {
+      bottom: 5px;
+      width: 12px;
+      height: 7px;
+      border-radius: 999px;
+      background: #ffcc66;
+    }
+
+    .pet-foot.left {
+      left: 17px;
+    }
+
+    .pet-foot.right {
+      right: 17px;
+    }
+
+    @media (max-width: 880px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .topbar {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 620px) {
+      .app {
+        width: calc(100% - 48px);
+        padding-top: 14px;
+      }
+
+      .topbar {
+        padding: 18px;
+        border-radius: 24px;
+      }
+
+      h1 {
+        font-size: 30px;
+      }
+
+      .subtitle {
+        font-size: 14px;
+        max-width: 22em;
+      }
+
+      .today-summary {
+        grid-template-columns: 1fr;
+      }
+
+      .summary-card,
+      .summary-card.wide {
+        grid-column: auto;
+        min-height: auto;
+      }
+
+      .panel-inner {
+        padding: 16px;
+      }
+
+      .field-row,
+      .stats,
+      .trend-summary,
+      .review-values {
+        grid-template-columns: 1fr;
+      }
+
+      .button-row {
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+
+      .btn {
+        width: 100%;
+      }
+
+      .calendar {
+        gap: 6px;
+      }
+
+      .day {
+        border-radius: 12px;
+        font-size: 13px;
+      }
+
+      .record {
+        grid-template-columns: 1fr 1fr 1fr;
+      }
+
+      .import-preview-row {
+        grid-template-columns: 1fr;
+      }
+
+      .import-preview-badge {
+        justify-self: start;
+      }
+
+      .record-date,
+      .record .record-actions {
+        grid-column: 1 / -1;
+      }
+
+      .target-progress {
+        grid-template-columns: 1fr;
+      }
+
+      .diet-pet {
+        right: 8px;
+        bottom: 8px;
+      }
+
+      .pet-button {
+        width: 62px;
+        height: 62px;
+      }
+
+      .pet-speech {
+        width: min(230px, calc(100vw - 24px));
+        font-size: 12px;
+      }
+    }
+
+    @media (max-width: 390px) {
+      .app {
+        width: calc(100% - 36px);
+      }
+
+      .panel-inner,
+      .topbar {
+        padding: 15px;
+      }
+
+      .chart-head {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .record {
+        grid-template-columns: 1fr;
+      }
+
+      .day {
+        min-height: 44px;
+      }
+
+      .link-btn {
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="hero-copy">
+        <h1>每日饮食记录</h1>
+        <p class="subtitle">记录摄入、体重、蛋白质。数据保存在当前浏览器里，刷新后仍会留下。</p>
+        <div class="today-pill" id="todayText">今天</div>
+      </div>
+      <div class="today-summary" id="todaySummary" aria-label="今天状态和最近记录">
+        <div class="summary-card">
+          <span class="summary-label">今天摄入</span>
+          <strong class="summary-value">未填写</strong>
+          <span class="summary-note">保存后这里会更新</span>
+        </div>
+        <div class="summary-card">
+          <span class="summary-label">今天蛋白</span>
+          <strong class="summary-value">未填写</strong>
+          <span class="summary-note">可选填写</span>
+        </div>
+        <div class="summary-card wide">
+          <span class="summary-label">最近记录</span>
+          <strong class="summary-value">还没有记录</strong>
+          <span class="summary-note">先填今天，趋势会自动出现</span>
+        </div>
+      </div>
+    </header>
+
+    <section class="grid">
+      <div class="stack">
+        <section class="panel">
+          <div class="panel-inner">
+            <h2>填写今天</h2>
+            <form class="form" id="recordForm">
+              <label>
+                日期
+                <input id="dateInput" type="date" required>
+              </label>
+              <label>
+                摄入 kcal（必填）
+                <input id="intakeInput" type="number" min="0" step="1" placeholder="例如 2100" required>
+              </label>
+              <div class="field-row">
+                <label>
+                  体重 kg（可不填）
+                  <input id="weightInput" type="number" min="0" step="0.1" placeholder="例如 68.5">
+                </label>
+                <label>
+                  蛋白质 g（可不填）
+                  <input id="proteinInput" type="number" min="0" step="0.1" placeholder="例如 120">
+                </label>
+              </div>
+              <label>
+                饮水 ml（可不填）
+                <input id="waterInput" type="number" min="0" step="10" placeholder="例如 2000">
+              </label>
+              <div class="button-row">
+                <button class="btn" type="submit">保存记录</button>
+                <button class="btn secondary" type="button" id="clearFormBtn">清空输入</button>
+              </div>
+              <p class="message" id="formMessage"></p>
+            </form>
+            <div class="target-settings">
+              <h3>每日目标</h3>
+              <div class="field-row">
+                <label>
+                  热量目标 kcal
+                  <input id="targetIntakeInput" type="number" min="0" step="1" placeholder="例如 1500">
+                </label>
+                <label>
+                  蛋白目标 g
+                  <input id="targetProteinInput" type="number" min="0" step="0.1" placeholder="例如 100">
+                </label>
+              </div>
+              <div class="field-row" style="margin-top: 12px;">
+                <label>
+                  身高 cm（用于 BMI）
+                  <input id="heightInput" type="number" min="0" step="0.1" placeholder="例如 170">
+                </label>
+                <label>
+                  饮水目标 ml
+                  <input id="targetWaterInput" type="number" min="0" step="10" placeholder="例如 2000">
+                </label>
+              </div>
+              <div class="button-row" style="margin-top: 12px;">
+                <button class="btn secondary" type="button" id="saveTargetsBtn">保存目标</button>
+              </div>
+              <div class="target-legend" aria-label="日历颜色说明">
+                <span>日历小点：圆点热量，菱形蛋白</span>
+                <span><i class="legend-dot good"></i>达标</span>
+                <span><i class="legend-dot warn"></i>稍低</span>
+                <span><i class="legend-dot low"></i>偏低</span>
+                <span><i class="legend-dot none"></i>未填</span>
+              </div>
+              <div class="target-progress" id="targetProgress"></div>
+              <p class="message" id="targetMessage"></p>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-inner">
+            <h2>批量导入</h2>
+            <p class="import-help">从表格复制后粘贴到这里。先写日期，再写摄入即可；也支持 2/12：650、2月12日 650大卡、2026.2.12，650 这类写法。体重和蛋白质可以空着。</p>
+            <textarea id="importText" placeholder="2/12：650&#10;2月13日 1000大卡&#10;2026.2.14，600"></textarea>
+            <div class="button-row" style="margin-top: 12px;">
+              <button class="btn" type="button" id="importBtn">先预览</button>
+              <button class="btn secondary" type="button" id="confirmImportBtn">确认录入</button>
+              <button class="btn secondary" type="button" id="clearImportBtn">清空导入框</button>
+            </div>
+            <div class="button-row" style="margin-top: 8px;">
+              <button class="btn secondary" type="button" id="exportBtn">导出 CSV</button>
+              <label class="btn secondary" style="cursor: pointer; margin: 0;">
+                导入文件
+                <input type="file" id="fileImportInput" accept=".csv,.json" style="display: none;">
+              </label>
+            </div>
+            <div class="import-preview" id="importPreview"></div>
+            <p class="message" id="importMessage"></p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-inner">
+            <div class="calendar-tools">
+              <button class="icon-btn" type="button" id="prevMonthBtn" aria-label="上个月">‹</button>
+              <div class="month-title" id="monthTitle"></div>
+              <button class="icon-btn" type="button" id="nextMonthBtn" aria-label="下个月">›</button>
+            </div>
+            <div class="calendar" id="calendar"></div>
+            <div class="review" id="reviewBox"></div>
+          </div>
+        </section>
+      </div>
+
+      <div class="stack">
+        <section class="panel">
+          <div class="panel-inner">
+            <h2>整体趋势</h2>
+            <div class="stats" id="stats"></div>
+            <div class="charts" id="charts" style="margin-top: 14px;"></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-inner">
+            <h2>全部记录</h2>
+            <div class="records" id="records"></div>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <button class="theme-toggle" type="button" id="themeToggle" aria-label="切换深色模式"> </button>
+  <div class="toast-container" id="toastContainer"></div>
+
+  <div class="diet-pet" aria-live="polite">
+    <div class="pet-speech" id="petSpeech"></div>
+    <button class="pet-button" type="button" id="petButton" aria-label="让小伙伴说一句话">
+      <svg class="pet-art" viewBox="0 0 120 120" aria-hidden="true">
+        <ellipse class="fox-shadow" cx="61" cy="111" rx="42" ry="6"></ellipse>
+        <path class="fox-white fox-outline" d="M28 80 C14 67 18 44 34 49 C45 55 44 77 32 86 Z"></path>
+        <path class="fox-orange fox-outline" d="M30 79 C20 66 25 48 34 50 C42 57 39 75 30 79 Z"></path>
+        <path class="fox-white fox-outline" d="M28 96 C20 95 17 104 24 110 C31 116 45 111 49 101 C44 97 36 96 28 96 Z"></path>
+        <path class="fox-white fox-outline" d="M92 96 C100 95 104 104 96 110 C89 116 75 111 71 101 C76 97 84 96 92 96 Z"></path>
+        <circle class="fox-pad" cx="28" cy="104" r="3"></circle>
+        <circle class="fox-pad" cx="36" cy="103" r="3"></circle>
+        <ellipse class="fox-pad" cx="33" cy="111" rx="5" ry="3.5"></ellipse>
+        <circle class="fox-pad" cx="92" cy="104" r="3"></circle>
+        <circle class="fox-pad" cx="84" cy="103" r="3"></circle>
+        <ellipse class="fox-pad" cx="87" cy="111" rx="5" ry="3.5"></ellipse>
+        <path class="fox-orange fox-outline" d="M37 45 C32 30 34 13 46 10 C56 12 65 28 68 43 C74 42 81 43 88 47 C97 35 111 27 116 34 C121 43 113 63 103 69 C104 78 96 86 82 89 C72 95 49 95 38 89 C27 84 21 74 25 65 C17 61 18 57 29 54 C32 51 35 48 37 45 Z"></path>
+        <path class="fox-pink fox-outline" d="M42 40 C37 28 39 18 46 16 C53 18 60 31 60 38 C54 40 48 43 42 40 Z"></path>
+        <path class="fox-pink fox-outline" d="M92 51 C96 41 107 34 112 37 C115 43 109 58 101 63 C99 58 96 54 92 51 Z"></path>
+        <path class="fox-white" d="M31 65 C43 70 49 78 60 78 C71 78 78 70 99 68 C94 82 79 91 61 91 C43 91 32 82 31 65 Z"></path>
+        <path class="fox-white" d="M62 34 C70 38 67 58 64 70 C61 77 51 73 52 63 C53 49 53 37 62 34 Z"></path>
+        <ellipse class="fox-purple" cx="48" cy="56" rx="6" ry="9"></ellipse>
+        <ellipse fill="#fff" cx="50" cy="52" rx="2.2" ry="4"></ellipse>
+        <path class="fox-outline" d="M82 56 C87 52 91 54 94 58" fill="none"></path>
+        <ellipse class="fox-purple" cx="62" cy="66" rx="7" ry="4"></ellipse>
+        <path class="fox-outline" d="M55 72 C56 80 64 80 66 72" fill="none"></path>
+        <path class="fox-pink fox-outline" d="M60 78 C62 88 72 79 66 73 C64 77 62 79 60 78 Z"></path>
+        <path class="fox-heart fox-outline" d="M35 82 C34 68 51 63 61 74 C71 63 88 68 86 82 C84 97 61 108 61 108 C61 108 37 97 35 82 Z"></path>
+        <path class="fox-heart-shadow" d="M42 92 C48 99 61 106 61 106 C61 106 75 99 81 91 C70 96 55 96 42 92 Z"></path>
+        <path class="fox-white fox-outline" d="M34 77 C29 78 28 89 35 93 C42 97 50 92 51 84 C45 83 39 81 34 77 Z"></path>
+        <path class="fox-white fox-outline" d="M88 77 C93 78 94 89 87 93 C80 97 72 92 71 84 C77 83 83 81 88 77 Z"></path>
+        <path fill="#ffbfd3" d="M67 72 C75 68 82 69 87 75 C80 74 74 74 67 72 Z" opacity="0.75"></path>
+        <path fill="#fff6d5" d="M28 62 C27 57 29 53 33 51 C39 59 36 67 28 62 Z" opacity="0.65"></path>
+      </svg>
+    </button>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "dailyDietRecordsV1";
+    const TARGET_STORAGE_KEY = "dailyDietTargetsV1";
+    const PET_LINES = [
+      "体重今天像电梯，别急，先看一周趋势。",
+      "蛋白质到位，身体：这班我上。",
+      "热量别装失忆，记录一下就老实了。",
+      "今天的你，比昨天多了一点点可持续。",
+      "水分一来，体重会演戏，别被它骗票。",
+      "称重只是一条消息，不是判决书。",
+      "蛋白质是修房子的砖，别让工地断货。",
+      "少一点焦虑，多一点规律，脂肪会听懂的。",
+      "今天不完美也没事，明天继续把方向盘握住。",
+      "体重下降慢？可能是在偷偷排队。",
+      "肌肉喜欢蛋白质，脂肪不喜欢耐心。",
+      "别和一顿饭决斗，看一整周的走势。",
+      "你负责记录，我负责在旁边碎碎念。",
+      "热量像零钱，花之前看一眼更安心。",
+      "晚一点瘦也叫瘦，进度条还在走。",
+      "今天吃够蛋白，明天少点馋嘴谈判。",
+      "体重波动像天气，趋势才像季节。",
+      "把数据记下来，迷雾就少一半。",
+      "别饿到发脾气，减脂也要讲礼貌。",
+      "认真记录的人，已经赢过随缘派了。"
+    ];
+    const recordsByDate = new Map();
+    const intakeInput = document.querySelector("#intakeInput");
+    const weightInput = document.querySelector("#weightInput");
+    const proteinInput = document.querySelector("#proteinInput");
+    const formMessage = document.querySelector("#formMessage");
+    const importText = document.querySelector("#importText");
+    const importMessage = document.querySelector("#importMessage");
+    const importPreview = document.querySelector("#importPreview");
+    const confirmImportBtn = document.querySelector("#confirmImportBtn");
+    const stats = document.querySelector("#stats");
+    const charts = document.querySelector("#charts");
+    const calendar = document.querySelector("#calendar");
+    const monthTitle = document.querySelector("#monthTitle");
+    const reviewBox = document.querySelector("#reviewBox");
+    const recordsBox = document.querySelector("#records");
+    const todayText = document.querySelector("#todayText");
+    const todaySummary = document.querySelector("#todaySummary");
+    const petButton = document.querySelector("#petButton");
+    const petSpeech = document.querySelector("#petSpeech");
+    const waterInput = document.querySelector("#waterInput");
+    const targetIntakeInput = document.querySelector("#targetIntakeInput");
+    const targetProteinInput = document.querySelector("#targetProteinInput");
+    const heightInput = document.querySelector("#heightInput");
+    const targetWaterInput = document.querySelector("#targetWaterInput");
+    const targetMessage = document.querySelector("#targetMessage");
+    const saveTargetsBtn = document.querySelector("#saveTargetsBtn");
+    const targetProgress = document.querySelector("#targetProgress");
+
+    const today = toDateString(new Date());
+    let selectedDate = today;
+    let calendarYear = Number(today.slice(0, 4));
+    let calendarMonth = Number(today.slice(5, 7)) - 1;
+    let pendingImportRecords = [];
+    let lastPetLineIndex = -1;
+    let petSpeechTimer = null;
+    let dailyTargets = { intake: "", protein: "", height: "", water: "" };
+    let chartRange = 30;
+    let chartView = "line";
+
+    function toDateString(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+
+    function formatDateText(dateString) {
+      const [year, month, day] = dateString.split("-");
+      return `${year}年${Number(month)}月${Number(day)}日`;
+    }
+
+    function readNumber(value, required) {
+      const trimmed = String(value ?? "").trim();
+      if (!trimmed) return required ? null : "";
+      const number = Number(trimmed);
+      if (!Number.isFinite(number) || number < 0) return null;
+      return number;
+    }
+
+    function setMessage(element, text, type) {
+      element.textContent = text;
+      element.className = `message ${type || ""}`;
+      if (text && type) showToast(text, type);
+    }
+
+    function showToast(text, type) {
+      const container = document.querySelector("#toastContainer");
+      const toast = document.createElement("div");
+      toast.className = `toast ${type || ""}`;
+      toast.textContent = text;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.classList.add("toast-out");
+        toast.addEventListener("animationend", () => toast.remove());
+      }, 3000);
+    }
+
+    function clearImportPreview() {
+      pendingImportRecords = [];
+      importPreview.classList.remove("show");
+      importPreview.innerHTML = "";
+    }
+
+    function loadRecords() {
+      recordsByDate.clear();
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) return;
+
+      try {
+        const records = JSON.parse(saved);
+        if (!Array.isArray(records)) return;
+        records.forEach((record) => {
+          if (record && isValidDate(record.date) && Number.isFinite(Number(record.intake))) {
+            recordsByDate.set(record.date, {
+              date: record.date,
+              intake: Number(record.intake),
+              weight: record.weight === "" || record.weight === null ? "" : Number(record.weight),
+              protein: record.protein === "" || record.protein === null ? "" : Number(record.protein),
+              water: record.water === "" || record.water === null || record.water === undefined ? "" : Number(record.water)
+            });
+          }
+        });
+      } catch (error) {
+        recordsByDate.clear();
+      }
+    }
+
+    function saveRecords() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(getSortedRecords()));
+    }
+
+    function loadTargets() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(TARGET_STORAGE_KEY) || "{}");
+        dailyTargets = {
+          intake: Number.isFinite(Number(saved.intake)) && Number(saved.intake) > 0 ? Number(saved.intake) : "",
+          protein: Number.isFinite(Number(saved.protein)) && Number(saved.protein) > 0 ? Number(saved.protein) : "",
+          height: Number.isFinite(Number(saved.height)) && Number(saved.height) > 0 ? Number(saved.height) : "",
+          water: Number.isFinite(Number(saved.water)) && Number(saved.water) > 0 ? Number(saved.water) : ""
+        };
+      } catch (error) {
+        dailyTargets = { intake: "", protein: "", height: "", water: "" };
+      }
+
+      targetIntakeInput.value = dailyTargets.intake === "" ? "" : dailyTargets.intake;
+      targetProteinInput.value = dailyTargets.protein === "" ? "" : dailyTargets.protein;
+      heightInput.value = dailyTargets.height === "" ? "" : dailyTargets.height;
+      targetWaterInput.value = dailyTargets.water === "" ? "" : dailyTargets.water;
+    }
+
+    function saveTargets() {
+      const intake = readNumber(targetIntakeInput.value, false);
+      const protein = readNumber(targetProteinInput.value, false);
+      const height = readNumber(heightInput.value, false);
+      const water = readNumber(targetWaterInput.value, false);
+
+      if (intake === null || protein === null || height === null || water === null) {
+        setMessage(targetMessage, "目标需要填写大于或等于 0 的数字，也可以留空。", "error");
+        return;
+      }
+
+      dailyTargets = {
+        intake: intake === 0 ? "" : intake,
+        protein: protein === 0 ? "" : protein,
+        height: height === 0 ? "" : height,
+        water: water === 0 ? "" : water
+      };
+      localStorage.setItem(TARGET_STORAGE_KEY, JSON.stringify(dailyTargets));
+      targetIntakeInput.value = dailyTargets.intake === "" ? "" : dailyTargets.intake;
+      targetProteinInput.value = dailyTargets.protein === "" ? "" : dailyTargets.protein;
+      heightInput.value = dailyTargets.height === "" ? "" : dailyTargets.height;
+      targetWaterInput.value = dailyTargets.water === "" ? "" : dailyTargets.water;
+      setMessage(targetMessage, "目标已保存，日历颜色已更新。", "success");
+      render();
+    }
+
+    function getSortedRecords() {
+      return Array.from(recordsByDate.values()).sort((a, b) => a.date.localeCompare(b.date));
+    }
+
+    function isValidDate(value) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+      const date = new Date(`${value}T00:00:00`);
+      return !Number.isNaN(date.getTime()) && toDateString(date) === value;
+    }
+
+    function normalizeDate(value) {
+      const clean = String(value ?? "")
+        .trim()
+        .replace(/年|[./、]/g, "-")
+        .replace(/月/g, "-")
+        .replace(/日/g, "")
+        .replace(/-+/g, "-")
+        .replace(/^-|-$/g, "");
+      const fullDate = clean.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+      const shortDate = clean.match(/^(\d{1,2})-(\d{1,2})$/);
+      let date = "";
+
+      if (fullDate) {
+        date = `${fullDate[1]}-${fullDate[2].padStart(2, "0")}-${fullDate[3].padStart(2, "0")}`;
+      } else if (shortDate) {
+        date = `${today.slice(0, 4)}-${shortDate[1].padStart(2, "0")}-${shortDate[2].padStart(2, "0")}`;
+      }
+
+      return isValidDate(date) ? date : "";
+    }
+
+    function recordFromInputs() {
+      const date = dateInput.value;
+      const intake = readNumber(intakeInput.value, true);
+      const weight = readNumber(weightInput.value, false);
+      const protein = readNumber(proteinInput.value, false);
+      const water = readNumber(waterInput.value, false);
+
+      if (!isValidDate(date)) return { error: "请选择正确的日期。" };
+      if (intake === null) return { error: "摄入是必填项，请填写一个大于或等于 0 的数字。" };
+      if (weight === null) return { error: "体重如果填写，需要是大于或等于 0 的数字。" };
+      if (protein === null) return { error: "蛋白质如果填写，需要是大于或等于 0 的数字。" };
+      if (water === null) return { error: "饮水如果填写，需要是大于或等于 0 的数字。" };
+
+      return { date, intake, weight, protein, water };
+    }
+
+    function fillForm(record) {
+      dateInput.value = record.date;
+      intakeInput.value = record.intake;
+      weightInput.value = record.weight === "" ? "" : record.weight;
+      proteinInput.value = record.protein === "" ? "" : record.protein;
+      waterInput.value = record.water === "" || record.water === undefined ? "" : record.water;
+    }
+
+    function clearFormForDate(date) {
+      dateInput.value = date;
+      intakeInput.value = "";
+      weightInput.value = "";
+      proteinInput.value = "";
+      waterInput.value = "";
+    }
+
+    function render() {
+      const sorted = getSortedRecords();
+      renderTodaySummary(sorted);
+      renderStats(sorted);
+      renderCharts(sorted);
+      renderCalendar();
+      renderReview();
+      renderTargetProgress();
+      renderRecords(sorted);
+    }
+
+    function valueOrEmpty(value, unit) {
+      return value === "" || !Number.isFinite(Number(value)) ? "未填写" : `${roundValue(Number(value))} ${unit}`;
+    }
+
+    function targetNoteForToday(record, key, label) {
+      if (!record) return "保存后这里会更新";
+      let target, unit;
+      if (key === "intake") { target = dailyTargets.intake; unit = "kcal"; }
+      else if (key === "protein") { target = dailyTargets.protein; unit = "g"; }
+      else if (key === "water") { target = dailyTargets.water; unit = "ml"; }
+      else return "目标还没有设置";
+      if (target === "" || !Number.isFinite(Number(target)) || Number(target) <= 0) return "还没有设置目标";
+      const value = record[key] === undefined ? "" : record[key];
+      const check = metricTargetStatus(label, value, target, unit);
+      return check ? check.text : "目标还没有设置";
+    }
+
+    function calculateBMI(weight, height) {
+      if (!weight || !height || weight === "" || height === "") return null;
+      const w = Number(weight);
+      const h = Number(height) / 100;
+      if (w <= 0 || h <= 0) return null;
+      return w / (h * h);
+    }
+
+    function bmiCategory(bmi) {
+      if (bmi === null) return "";
+      if (bmi < 18.5) return "偏瘦";
+      if (bmi < 24) return "正常";
+      if (bmi < 28) return "偏胖";
+      return "肥胖";
+    }
+
+    function renderTodaySummary(sorted) {
+      const todayRecord = recordsByDate.get(today);
+      const latest = sorted[sorted.length - 1];
+      const latestText = latest ? `${latest.date} · ${roundValue(Number(latest.intake))} kcal` : "还没有记录";
+      const latestNote = latest
+        ? `共 ${sorted.length} 天，最近一次数据已保存`
+        : "先填今天，趋势会自动出现";
+
+      todaySummary.innerHTML = `
+        <div class="summary-card">
+          <span class="summary-label">今天摄入</span>
+          <strong class="summary-value">${todayRecord ? valueOrEmpty(todayRecord.intake, "kcal") : "未填写"}</strong>
+          <span class="summary-note">${targetNoteForToday(todayRecord, "intake", "热量")}</span>
+        </div>
+        <div class="summary-card">
+          <span class="summary-label">今天饮水</span>
+          <strong class="summary-value">${todayRecord ? valueOrEmpty(todayRecord.water || "", "ml") : "未填写"}</strong>
+          <span class="summary-note">${targetNoteForToday(todayRecord, "water", "饮水")}</span>
+        </div>
+        <div class="summary-card">
+          <span class="summary-label">今天蛋白</span>
+          <strong class="summary-value">${todayRecord ? valueOrEmpty(todayRecord.protein, "g") : "未填写"}</strong>
+          <span class="summary-note">${targetNoteForToday(todayRecord, "protein", "蛋白")}</span>
+        </div>
+        <div class="summary-card wide">
+          <span class="summary-label">最近记录</span>
+          <strong class="summary-value">${latestText}</strong>
+          <span class="summary-note">${latestNote}</span>
+        </div>
+      `;
+    }
+
+    function renderStats(sorted) {
+      if (!sorted.length) {
+        stats.innerHTML = `
+          <div class="empty-state" style="grid-column: 1 / -1;">还没有记录。先保存今天的摄入，趋势会立刻出现。</div>
+        `;
+        return;
+      }
+
+      const latest = sorted[sorted.length - 1];
+      const averageProtein = averageFilledValue(sorted, "protein");
+      const averageWater = averageFilledValue(sorted, "water");
+      const weeklyWeightChange = averageWeeklyWeightChange(sorted);
+      const weeklyWeightReview = weightTrendReview(sorted, weeklyWeightChange);
+      const recordReview = recordHabitReview(sorted);
+      const bmi = calculateBMI(latest.weight, dailyTargets.height);
+      const bmiText = bmi === null ? "未填" : roundValue(bmi);
+      const bmiNote = bmi === null ? "设置身高后显示" : bmiCategory(bmi);
+
+      const cards = [
+        statCard("已记录", sorted.length, "天", recordReview),
+        statCard("最近摄入", latest.intake, "kcal"),
+        statCard("最近体重", latest.weight === "" ? "未填" : latest.weight, latest.weight === "" ? "" : "kg"),
+        statCard("最近饮水", (latest.water === "" || latest.water === undefined) ? "未填" : latest.water, (latest.water === "" || latest.water === undefined) ? "" : "ml"),
+        statCard("最近蛋白质", latest.protein === "" ? "未填" : latest.protein, latest.protein === "" ? "" : "g"),
+        statCard("平均蛋白", averageProtein === null ? "未填" : roundValue(averageProtein), averageProtein === null ? "" : "g/天"),
+      ];
+
+      if (dailyTargets.height) {
+        cards.push(statCard("BMI", bmiText, "", bmiNote));
+      }
+
+      cards.push(statCard("平均饮水", averageWater === null ? "未填" : roundValue(averageWater), averageWater === null ? "" : "ml/天"));
+      cards.push(statCard("平均周体重变化", weeklyWeightChange === null ? "未填" : formatSignedValue(weeklyWeightChange), weeklyWeightChange === null ? "" : "kg/周", weeklyWeightReview));
+
+      stats.innerHTML = cards.join("");
+    }
+
+    function averageFilledValue(records, key) {
+      const values = records
+        .map((record) => record[key])
+        .filter((value) => value !== "" && Number.isFinite(Number(value)))
+        .map(Number);
+
+      if (!values.length) return null;
+      return values.reduce((sum, value) => sum + value, 0) / values.length;
+    }
+
+    function averageWeeklyWeightChange(records) {
+      const weightPoints = records
+        .filter((record) => record.weight !== "" && Number.isFinite(Number(record.weight)))
+        .map((record) => ({ date: record.date, value: Number(record.weight) }));
+
+      if (weightPoints.length < 2) return null;
+
+      const first = weightPoints[0];
+      const last = weightPoints[weightPoints.length - 1];
+      const days = daysBetween(first.date, last.date);
+      if (days <= 0) return null;
+
+      return ((last.value - first.value) / days) * 7;
+    }
+
+    function consecutiveRecordDays(records) {
+      if (!records.length) return 0;
+
+      let streak = 1;
+      for (let index = records.length - 1; index > 0; index -= 1) {
+        if (daysBetween(records[index - 1].date, records[index].date) !== 1) break;
+        streak += 1;
+      }
+      return streak;
+    }
+
+    function recordHabitReview(records) {
+      const streak = consecutiveRecordDays(records);
+      if (streak >= 30) return `优秀连续 · ${streak} 天`;
+      if (streak >= 14) return `很稳 · 连续 ${streak} 天`;
+      if (streak >= 7) return `良好 · 连续 ${streak} 天`;
+      if (streak >= 3) return `保持中 · 连续 ${streak} 天`;
+      if (records.length >= 14) return "有积累 · 继续连起来";
+      return "刚起步 · 先记满 3 天";
+    }
+
+    function latestWeightValue(records) {
+      const point = records
+        .slice()
+        .reverse()
+        .find((record) => record.weight !== "" && Number.isFinite(Number(record.weight)));
+
+      return point ? Number(point.weight) : null;
+    }
+
+    function weightTrendReview(records, weeklyChange) {
+      const latestWeight = latestWeightValue(records);
+      if (weeklyChange === null || latestWeight === null || latestWeight <= 0) return "";
+      if (Math.abs(weeklyChange) <= 0.1) return "稳定 · 波动很小";
+      if (weeklyChange > 0) return "回升中 · 看看热量和活动";
+
+      const weeklyLossPercent = Math.abs(weeklyChange) / latestWeight * 100;
+      const percentText = `${roundValue(weeklyLossPercent)}%/周`;
+
+      if (weeklyLossPercent < 0.25) return `偏慢 · 约 ${percentText}`;
+      if (weeklyLossPercent < 0.5) return `良好 · 约 ${percentText}`;
+      if (weeklyLossPercent <= 1) return `优秀 · 约 ${percentText}`;
+      if (weeklyLossPercent <= 1.5) return `偏快 · 约 ${percentText}`;
+      return `过于激进 · 约 ${percentText}`;
+    }
+
+    function daysBetween(startDate, endDate) {
+      const start = new Date(`${startDate}T00:00:00`);
+      const end = new Date(`${endDate}T00:00:00`);
+      return Math.round((end - start) / 86400000);
+    }
+
+    function formatSignedValue(value) {
+      const rounded = roundValue(value);
+      return value > 0 ? `+${rounded}` : rounded;
+    }
+
+    function statCard(name, value, unit, note = "") {
+      return `
+        <div class="stat">
+          <div class="stat-name">${name}</div>
+          <div class="stat-value">${value}</div>
+          <div class="stat-unit">${unit}</div>
+          ${note ? `<div class="stat-note">${note}</div>` : ""}
+        </div>
+      `;
+    }
+
+    function renderCharts(sorted) {
+      if (!sorted.length) {
+        charts.innerHTML = "";
+        return;
+      }
+
+      const ranged = chartRange && sorted.length > chartRange
+        ? sorted.slice(-chartRange)
+        : sorted;
+
+      const intakeValues = ranged.map((record, index) => ({ index, date: record.date, value: record.intake }));
+      const targetIntake = dailyTargets.intake && Number(dailyTargets.intake) > 0 ? Number(dailyTargets.intake) : null;
+      const extraCharts = [
+        compactMetricCard(ranged, "weight", "体重", "kg", "var(--green)", "#34c759"),
+        compactMetricCard(ranged, "protein", "蛋白质", "g", "var(--orange)", "#ff9500")
+      ].filter(Boolean).join("");
+
+      charts.innerHTML = makeIntakeOverview(ranged, intakeValues, targetIntake, sorted.length) + extraCharts;
+    }
+
+    function makeIntakeOverview(records, values, targetIntake, totalCount) {
+      const averageValues = movingAverage(values, 7);
+      const latest = values[values.length - 1].value;
+      const average = Math.round(values.reduce((sum, point) => sum + point.value, 0) / values.length);
+      const highest = values.reduce((max, point) => point.value > max.value ? point : max, values[0]);
+      const lowest = values.reduce((min, point) => point.value < min.value ? point : min, values[0]);
+      const rangeLabel = totalCount > records.length ? `最近 ${records.length} 天` : `${records.length} 天全部显示`;
+      const activeRange = chartRange || 0;
+
+      const chartContent = chartView === "bar"
+        ? makeWeeklyBarChart(records, targetIntake)
+        : makeCompactChart(records, values, averageValues, "#8ec5ff", "#0057d9", "kcal", targetIntake);
+
+      const legendContent = chartView === "bar"
+        ? (targetIntake ? `<span class="legend-item"><span class="legend-line" style="height:2px;background:var(--red);border-style:dashed"></span>目标 ${targetIntake} kcal</span>` : "")
+        : `<span class="legend-item"><span class="legend-line" style="background:#8ec5ff"></span>每天</span>
+            <span class="legend-item"><span class="legend-line" style="height:5px;background:#0057d9"></span>7天平均</span>
+            ${targetIntake ? `<span class="legend-item"><span class="legend-line" style="height:2px;background:var(--red);border-style:dashed"></span>目标 ${targetIntake} kcal</span>` : ""}`;
+
+      return `
+        <div class="chart-card">
+          <div class="chart-head">
+            <h3 class="chart-title"><span class="dot" style="background:var(--blue)"></span>摄入总览</h3>
+            <div class="chart-range-btns">
+              <button class="range-btn${chartView === "line" ? " active" : ""}" type="button" data-view="line">折线</button>
+              <button class="range-btn${chartView === "bar" ? " active" : ""}" type="button" data-view="bar">周均</button>
+            </div>
+            <div class="chart-range-btns">
+              <button class="range-btn${activeRange === 7 ? " active" : ""}" type="button" data-range="7">7天</button>
+              <button class="range-btn${activeRange === 30 ? " active" : ""}" type="button" data-range="30">30天</button>
+              <button class="range-btn${activeRange === 0 ? " active" : ""}" type="button" data-range="0">全部</button>
+            </div>
+            <span class="chart-note">${rangeLabel}</span>
+          </div>
+          <div class="trend-summary">
+            <div class="trend-chip"><span>最近一天</span><strong>${latest} kcal</strong></div>
+            <div class="trend-chip"><span>平均摄入</span><strong>${average} kcal</strong></div>
+            <div class="trend-chip"><span>范围</span><strong>${lowest.value}-${highest.value}</strong></div>
+          </div>
+          <div class="legend">${legendContent}</div>
+          <div class="chart-frame">${chartContent}</div>
+        </div>
+      `;
+    }
+
+    function compactMetricCard(records, key, label, unit, colorVar, color) {
+      const values = records
+        .map((record, index) => ({ index, date: record.date, value: record[key] }))
+        .filter((point) => point.value !== "" && Number.isFinite(Number(point.value)));
+
+      if (!values.length) return "";
+
+      return `
+        <div class="chart-card">
+          <div class="chart-head">
+            <h3 class="chart-title"><span class="dot" style="background:${colorVar}"></span>${label}</h3>
+            <span class="chart-note">${values.length} 个点</span>
+          </div>
+          <div class="chart-frame">${makeCompactChart(records, values, [], color, color, unit)}</div>
+        </div>
+      `;
+    }
+
+    function makeWeeklyBarChart(records, targetIntake) {
+      const width = 760;
+      const height = 250;
+      const pad = { top: 22, right: 24, bottom: 46, left: 54 };
+
+      const weeks = [];
+      for (let i = 0; i < records.length; i += 7) {
+        const chunk = records.slice(i, i + 7);
+        const avg = Math.round(chunk.reduce((s, r) => s + Number(r.intake), 0) / chunk.length);
+        weeks.push({
+          label: `${chunk[0].date.slice(5)}-${chunk[chunk.length - 1].date.slice(5)}`,
+          avg,
+          count: chunk.length
+        });
+      }
+
+      if (!weeks.length) return "";
+
+      const maxVal = Math.max(...weeks.map(w => w.avg), targetIntake || 0);
+      const minVal = Math.min(...weeks.map(w => w.avg));
+      const gap = Math.max((maxVal - minVal) * 0.12, 50);
+      const yMin = Math.max(0, minVal - gap);
+      const yMax = maxVal + gap;
+      const range = yMax - yMin || 1;
+      const bottom = height - pad.bottom;
+      const plotWidth = width - pad.left - pad.right;
+      const barWidth = Math.max(16, Math.min(60, (plotWidth / weeks.length) * 0.7));
+      const gapX = (plotWidth - barWidth * weeks.length) / (weeks.length + 1);
+
+      const y = (value) => bottom - ((Number(value) - yMin) / range) * (height - pad.top - pad.bottom);
+
+      const bars = weeks.map((w, i) => {
+        const bx = pad.left + gapX + i * (barWidth + gapX);
+        const by = y(w.avg);
+        const bh = bottom - by;
+        return `<rect x="${bx}" y="${by}" width="${barWidth}" height="${bh}" rx="4" fill="#8ec5ff" opacity="0.85">
+          <title>${w.label}: ${w.avg} kcal (${w.count}天)</title>
+        </rect>
+        <text x="${bx + barWidth / 2}" y="${by - 6}" text-anchor="middle" fill="var(--muted)" font-size="10">${w.avg}</text>`;
+      }).join("");
+
+      const targetLine = targetIntake && targetIntake >= yMin && targetIntake <= yMax
+        ? `<line x1="${pad.left}" y1="${y(targetIntake)}" x2="${width - pad.right}" y2="${y(targetIntake)}" stroke="var(--red)" stroke-width="1.5" stroke-dasharray="8 4" opacity="0.7"></line>`
+        : "";
+
+      const xLabels = weeks.map((w, i) => {
+        const bx = pad.left + gapX + i * (barWidth + gapX) + barWidth / 2;
+        const label = weeks.length > 10 ? w.label.slice(5) : w.label;
+        return `<text x="${bx}" y="${height - 12}" text-anchor="middle" fill="var(--muted)" font-size="10" transform="rotate(-25, ${bx}, ${height - 12})">${label}</text>`;
+      }).join("");
+
+      return `
+        <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="周均柱状图">
+          <rect x="0" y="0" width="${width}" height="${height}" rx="18" fill="var(--chart-bg)"></rect>
+          <line x1="${pad.left}" y1="${pad.top}" x2="${pad.left}" y2="${bottom}" stroke="var(--line)"></line>
+          <line x1="${pad.left}" y1="${bottom}" x2="${width - pad.right}" y2="${bottom}" stroke="var(--line)"></line>
+          <text x="${pad.left - 10}" y="${pad.top + 5}" text-anchor="end" fill="var(--muted)" font-size="12">${yMax}</text>
+          <text x="${pad.left - 10}" y="${bottom + 4}" text-anchor="end" fill="var(--muted)" font-size="12">${yMin}</text>
+          ${targetLine}
+          ${bars}
+          ${xLabels}
+        </svg>
+      `;
+    }
+
+    function movingAverage(values, days) {
+      return values.map((point, index) => {
+        const start = Math.max(0, index - days + 1);
+        const group = values.slice(start, index + 1);
+        const average = group.reduce((sum, item) => sum + Number(item.value), 0) / group.length;
+        return { index: point.index, date: point.date, value: Math.round(average) };
+      });
+    }
+
+    function chartMinimumGap(unit) {
+      if (unit === "kg") return 0.5;
+      if (unit === "g") return 5;
+      return 50;
+    }
+
+    function makeCompactChart(records, values, averageValues, color, averageColor, unit, targetValue) {
+      const width = 760;
+      const height = 250;
+      const pad = { top: 22, right: 24, bottom: 46, left: 54 };
+      const allValues = values.concat(averageValues);
+      const minRaw = Math.min(...allValues.map((point) => Number(point.value)));
+      const maxRaw = Math.max(...allValues.map((point) => Number(point.value)));
+      const gap = Math.max((maxRaw - minRaw) * 0.12, chartMinimumGap(unit));
+      const min = Math.max(0, minRaw - gap);
+      const max = maxRaw + gap;
+      const range = max - min || 1;
+      const bottom = height - pad.bottom;
+      const plotWidth = width - pad.left - pad.right;
+
+      const x = (index) => {
+        if (records.length === 1) return pad.left + plotWidth / 2;
+        return pad.left + (index / (records.length - 1)) * plotWidth;
+      };
+      const y = (value) => bottom - ((Number(value) - min) / range) * (height - pad.top - pad.bottom);
+      const dailyPath = makePath(values, x, y);
+      const averagePath = makePath(averageValues, x, y);
+      const fillId = `chartFill${color.replace(/[^a-z0-9]/gi, "")}${unit}`;
+      const area = values.length > 1
+        ? `${dailyPath} L ${x(values[values.length - 1].index)} ${bottom} L ${x(values[0].index)} ${bottom} Z`
+        : "";
+
+      const labels = makeDateLabels(records, x, height);
+      const points = values.length <= 14
+        ? values.map((point) => `<circle cx="${x(point.index)}" cy="${y(point.value)}" r="4" fill="#fff" stroke="${color}" stroke-width="2.5"></circle>`).join("")
+        : "";
+      const hoverPoints = makeHoverPoints(values, x, y, bottom, pad, width, unit, color);
+
+      return `
+        <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="趋势图">
+          <defs>
+            <linearGradient id="${fillId}" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stop-color="${color}" stop-opacity="0.28"></stop>
+              <stop offset="100%" stop-color="${color}" stop-opacity="0.02"></stop>
+            </linearGradient>
+          </defs>
+          <rect x="0" y="0" width="${width}" height="${height}" rx="18" fill="var(--chart-bg)"></rect>
+          <line x1="${pad.left}" y1="${pad.top}" x2="${pad.left}" y2="${bottom}" stroke="var(--line)"></line>
+          <line x1="${pad.left}" y1="${bottom}" x2="${width - pad.right}" y2="${bottom}" stroke="var(--line)"></line>
+          <line x1="${pad.left}" y1="${y((max + min) / 2)}" x2="${width - pad.right}" y2="${y((max + min) / 2)}" stroke="var(--line)" stroke-dasharray="6 8"></line>
+          ${targetValue !== null && targetValue >= min && targetValue <= max ? `<line x1="${pad.left}" y1="${y(targetValue)}" x2="${width - pad.right}" y2="${y(targetValue)}" stroke="var(--red)" stroke-width="1.5" stroke-dasharray="8 4" opacity="0.7"></line>` : ""}
+          <text x="${pad.left - 10}" y="${pad.top + 5}" text-anchor="end" fill="var(--muted)" font-size="12">${roundValue(maxRaw)}</text>
+          <text x="${pad.left - 10}" y="${bottom + 4}" text-anchor="end" fill="var(--muted)" font-size="12">${roundValue(minRaw)}</text>
+          ${area ? `<path d="${area}" fill="url(#${fillId})"></path>` : ""}
+          <path d="${dailyPath}" fill="none" stroke="${color}" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"></path>
+          ${averagePath ? `<path d="${averagePath}" fill="none" stroke="${averageColor}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"></path>` : ""}
+          ${points}
+          ${labels}
+          ${hoverPoints}
+          <title>${records[0].date} 到 ${records[records.length - 1].date}，单位 ${unit}</title>
+        </svg>
+      `;
+    }
+
+    function makeHoverPoints(values, x, y, bottom, pad, width, unit, color) {
+      const tooltipWidth = 108;
+      const tooltipHeight = 42;
+
+      return values.map((point, index) => {
+        const pointX = x(point.index);
+        const pointY = y(point.value);
+        const previousX = index === 0 ? pad.left : (x(values[index - 1].index) + pointX) / 2;
+        const nextX = index === values.length - 1 ? width - pad.right : (pointX + x(values[index + 1].index)) / 2;
+        const hitX = Math.max(pad.left, previousX);
+        const hitWidth = Math.max(8, Math.min(width - pad.right, nextX) - hitX);
+        const tooltipX = Math.min(Math.max(pointX - tooltipWidth / 2, pad.left + 4), width - pad.right - tooltipWidth - 4);
+        const aboveY = pointY - tooltipHeight - 14;
+        const tooltipY = aboveY < pad.top ? pointY + 14 : aboveY;
+        const valueText = `${roundValue(Number(point.value))} ${unit}`;
+
+        return `
+          <g class="hover-point" tabindex="0" aria-label="${point.date} ${valueText}">
+            <rect class="chart-hover-region" x="${hitX}" y="${pad.top}" width="${hitWidth}" height="${bottom - pad.top}"></rect>
+            <line class="chart-focus-line" x1="${pointX}" y1="${pad.top}" x2="${pointX}" y2="${bottom}" stroke="${color}" stroke-dasharray="3 5"></line>
+            <circle class="chart-focus-dot" cx="${pointX}" cy="${pointY}" r="5.5" fill="#fff" stroke="${color}" stroke-width="2.5"></circle>
+            <g class="point-tooltip" transform="translate(${tooltipX} ${tooltipY})">
+              <rect width="${tooltipWidth}" height="${tooltipHeight}" rx="8"></rect>
+              <text class="tooltip-date" x="10" y="16">${point.date}</text>
+              <text class="tooltip-value" x="10" y="32">${valueText}</text>
+            </g>
+          </g>
+        `;
+      }).join("");
+    }
+
+    function makePath(values, x, y) {
+      if (!values.length) return "";
+      return values.map((point, index) => {
+        const prefix = index === 0 ? "M" : "L";
+        return `${prefix} ${x(point.index)} ${y(point.value)}`;
+      }).join(" ");
+    }
+
+    function makeDateLabels(records, x, height) {
+      const positions = records.length <= 3
+        ? records.map((record, index) => index)
+        : [0, Math.floor((records.length - 1) / 2), records.length - 1];
+
+      return positions.map((index) => `
+        <text x="${x(index)}" y="${height - 18}" text-anchor="middle" fill="var(--muted)" font-size="12">${records[index].date.slice(5)}</text>
+      `).join("");
+    }
+
+    function roundValue(value) {
+      return Number(value).toFixed(Number.isInteger(value) ? 0 : 1);
+    }
+
+    function renderCalendar() {
+      const firstDay = new Date(calendarYear, calendarMonth, 1);
+      const lastDay = new Date(calendarYear, calendarMonth + 1, 0);
+      const startWeekday = firstDay.getDay();
+      const daysInMonth = lastDay.getDate();
+      const weekdays = ["日", "一", "二", "三", "四", "五", "六"];
+      monthTitle.textContent = `${calendarYear}年${calendarMonth + 1}月`;
+
+      const cells = weekdays.map((day) => `<div class="weekday">${day}</div>`);
+      for (let i = 0; i < startWeekday; i += 1) {
+        cells.push(`<button class="day empty" type="button" disabled></button>`);
+      }
+      for (let day = 1; day <= daysInMonth; day += 1) {
+        const date = `${calendarYear}-${String(calendarMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+        const record = recordsByDate.get(date);
+        const status = targetStatusForRecord(record);
+        const targetDots = targetDotsForRecord(record);
+        const classes = [
+          "day",
+          record ? "has-record" : "",
+          date === selectedDate ? "selected" : "",
+          date === today ? "today" : ""
+        ].filter(Boolean).join(" ");
+        const actionText = record ? "编辑当天记录" : "新增当天记录";
+        const statusText = status ? `，目标${status.label}：${status.details.join("，")}` : "";
+        cells.push(`<button class="${classes}" type="button" data-date="${date}" title="点击${actionText}${statusText}" aria-label="${formatDateText(date)}，点击${actionText}${statusText}">${day}${targetDots}</button>`);
+      }
+      calendar.innerHTML = cells.join("");
+      calendar.classList.remove("calendar-slide");
+      void calendar.offsetWidth;
+      calendar.classList.add("calendar-slide");
+    }
+
+    function targetStatusForRecord(record) {
+      if (!record) return null;
+
+      const checks = targetChecksForRecord(record);
+
+      if (!checks.length) return null;
+
+      const levelRank = { good: 0, warn: 1, low: 2, none: 3 };
+      const worst = checks.reduce((current, item) => (
+        levelRank[item.level] > levelRank[current.level] ? item : current
+      ), checks[0]);
+
+      return {
+        level: worst.level,
+        label: worst.label,
+        details: checks.map((item) => item.text)
+      };
+    }
+
+    function targetChecksForRecord(record) {
+      if (!record) return [];
+      return [
+        metricTargetStatus("热量", record.intake, dailyTargets.intake, "kcal"),
+        metricTargetStatus("蛋白", record.protein, dailyTargets.protein, "g"),
+        metricTargetStatus("饮水", record.water === undefined ? "" : record.water, dailyTargets.water, "ml")
+      ].filter(Boolean);
+    }
+
+    function targetDotsForRecord(record) {
+      const checks = targetChecksForRecord(record);
+      if (!checks.length) return "";
+
+      const dots = checks.map((check) => (
+        `<span class="target-marker metric-${check.key} target-status-${check.level}" title="${check.text}"></span>`
+      )).join("");
+      return `<span class="day-target-dots" aria-hidden="true">${dots}</span>`;
+    }
+
+    function metricTargetStatus(name, value, target, unit) {
+      if (target === "" || !Number.isFinite(Number(target)) || Number(target) <= 0) return null;
+
+      const keyMap = { "热量": "intake", "蛋白": "protein", "饮水": "water" };
+      const key = keyMap[name] || "intake";
+      const labels = { good: "达标", warn: "稍低", low: "偏低", none: "未填" };
+      if (value === "" || !Number.isFinite(Number(value))) {
+        return {
+          level: "none",
+          label: labels.none,
+          ratio: null,
+          actual: null,
+          target: Number(target),
+          unit,
+          name,
+          key,
+          text: `${name}未填，目标 ${roundValue(Number(target))}${unit}`
+        };
+      }
+
+      const actual = Number(value);
+      const ratio = actual / Number(target);
+      const level = ratio >= 1 ? "good" : ratio >= 0.7 ? "warn" : "low";
+      return {
+        level,
+        label: labels[level],
+        ratio,
+        actual,
+        target: Number(target),
+        unit,
+        name,
+        key,
+        text: `${name}${labels[level]} ${roundValue(actual)}/${roundValue(Number(target))}${unit}`
+      };
+    }
+
+    function renderTargetProgress() {
+      const intake = readNumber(intakeInput.value, false);
+      const protein = readNumber(proteinInput.value, false);
+      const checks = targetChecksForRecord({
+        intake: intake === null ? "" : intake,
+        protein: protein === null ? "" : protein
+      });
+
+      if (!checks.length) {
+        targetProgress.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1;">先设置每日热量或蛋白目标，这里会显示当天达成度。</div>`;
+        return;
+      }
+
+      targetProgress.innerHTML = checks.map((check) => {
+        const percent = check.ratio === null ? null : Math.round(check.ratio * 100);
+        const width = percent === null ? 100 : Math.min(100, Math.max(0, percent));
+        const valueText = check.actual === null ? "未填" : `${roundValue(check.actual)} / ${roundValue(check.target)} ${check.unit}`;
+        return `
+          <div class="target-progress-card">
+            <span>${check.name}达成度</span>
+            <strong>${percent === null ? "未填" : `${percent}%`}</strong>
+            <div class="target-progress-track">
+              <div class="target-progress-fill target-status-${check.level}" style="width:${width}%"></div>
+            </div>
+            <span>${valueText}</span>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderReview() {
+      const record = recordsByDate.get(selectedDate);
+      if (!record) {
+        reviewBox.innerHTML = `
+          <p class="review-date">${formatDateText(selectedDate)}</p>
+          <div class="empty-state">这一天还没有记录。</div>
+        `;
+        return;
+      }
+
+      const waterVal = record.water === "" || record.water === undefined ? "未填" : `${record.water} ml`;
+      const bmi = calculateBMI(record.weight, dailyTargets.height);
+      const bmiText = bmi === null ? "" : `<div class="mini"><span>BMI</span><strong>${roundValue(bmi)} ${bmiCategory(bmi)}</strong></div>`;
+
+      reviewBox.innerHTML = `
+        <p class="review-date">${formatDateText(record.date)}</p>
+        <div class="review-values">
+          <div class="mini"><span>摄入</span><strong>${record.intake} kcal</strong></div>
+          <div class="mini"><span>体重</span><strong>${record.weight === "" ? "未填" : `${record.weight} kg`}</strong></div>
+          <div class="mini"><span>蛋白质</span><strong>${record.protein === "" ? "未填" : `${record.protein} g`}</strong></div>
+          <div class="mini"><span>饮水</span><strong>${waterVal}</strong></div>
+          ${bmiText}
+        </div>
+      `;
+    }
+
+    function renderRecords(sorted) {
+      if (!sorted.length) {
+        recordsBox.innerHTML = `<div class="empty-state"><svg width="48" height="48" viewBox="0 0 48 48" fill="none" style="margin-bottom:8px;opacity:0.5"><rect x="8" y="12" width="32" height="28" rx="4" stroke="var(--muted)" stroke-width="2"/><line x1="16" y1="22" x2="32" y2="22" stroke="var(--muted)" stroke-width="2" stroke-linecap="round"/><line x1="16" y1="28" x2="28" y2="28" stroke="var(--muted)" stroke-width="2" stroke-linecap="round"/><line x1="16" y1="34" x2="24" y2="34" stroke="var(--muted)" stroke-width="2" stroke-linecap="round"/></svg><br>还没有任何记录。</div>`;
+        return;
+      }
+
+      recordsBox.innerHTML = sorted.slice().reverse().map((record) => `
+        <div class="record">
+          <div class="record-date">${record.date}</div>
+          <div class="record-value">摄入<strong>${record.intake} kcal</strong></div>
+          <div class="record-value">体重<strong>${record.weight === "" ? "未填" : `${record.weight} kg`}</strong></div>
+          <div class="record-value">蛋白质<strong>${record.protein === "" ? "未填" : `${record.protein} g`}</strong></div>
+          <div class="record-value">饮水<strong>${(record.water === "" || record.water === undefined) ? "未填" : `${record.water} ml`}</strong></div>
+          <div class="record-actions">
+            <button class="link-btn" type="button" data-edit="${record.date}">查看/修改</button>
+            <button class="link-btn delete-btn" type="button" data-delete="${record.date}">删除</button>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function isImportHeaderLine(line) {
+      return /日期/.test(line) && /摄入|热量|卡路里|大卡|千卡|kcal/i.test(line);
+    }
+
+    function findDateInImportLine(line) {
+      const fullDate = line.match(/(\d{4})\s*(?:年|[./\-、])\s*(\d{1,2})\s*(?:月|[./\-、])\s*(\d{1,2})\s*日?/);
+      if (fullDate) {
+        return {
+          date: normalizeDate(`${fullDate[1]}-${fullDate[2]}-${fullDate[3]}`),
+          index: fullDate.index,
+          raw: fullDate[0]
+        };
+      }
+
+      const shortDate = line.match(/(\d{1,2})\s*(?:月\s*(\d{1,2})\s*日?|[./\-、]\s*(\d{1,2}))/);
+      if (shortDate) {
+        return {
+          date: normalizeDate(`${shortDate[1]}-${shortDate[2] || shortDate[3]}`),
+          index: shortDate.index,
+          raw: shortDate[0]
+        };
+      }
+
+      return { date: "", index: -1, raw: "" };
+    }
+
+    function readImportNumbers(text) {
+      return String(text ?? "")
+        .replace(/[：:=]/g, " ")
+        .replace(/[，,;；|\t]/g, " ")
+        .replace(/(千卡|大卡|卡路里|kcal|cal|公斤|千克|kg|克|g)/gi, " ")
+        .match(/\d+(?:\.\d+)?/g) || [];
+    }
+
+    function parseImportLine(line) {
+      const dateInfo = findDateInImportLine(line);
+      if (!dateInfo.date) return { date: "", intake: null, weight: "", protein: "" };
+
+      const afterDate = line.slice(dateInfo.index + dateInfo.raw.length);
+      const beforeDate = line.slice(0, dateInfo.index);
+      const numbers = readImportNumbers(afterDate);
+      const fallbackNumbers = numbers.length ? numbers : readImportNumbers(beforeDate);
+      const intake = readNumber(fallbackNumbers[0] ?? "", true);
+      const weight = readNumber(fallbackNumbers[1] ?? "", false);
+      const protein = readNumber(fallbackNumbers[2] ?? "", false);
+
+      return { date: dateInfo.date, intake, weight, protein };
+    }
+
+    function parseImportRows(text) {
+      const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+      const records = [];
+      const errors = [];
+
+      lines.forEach((line, index) => {
+        if (isImportHeaderLine(line)) return;
+
+        const result = parseImportLine(line);
+        const { date, intake, weight, protein } = result;
+        const rowNumber = index + 1;
+
+        if (!date) errors.push(`第 ${rowNumber} 行：日期不正确`);
+        if (intake === null) errors.push(`第 ${rowNumber} 行：摄入必须填写数字`);
+        if (weight === null) errors.push(`第 ${rowNumber} 行：体重需要是数字或留空`);
+        if (protein === null) errors.push(`第 ${rowNumber} 行：蛋白质需要是数字或留空`);
+
+        if (date && intake !== null && weight !== null && protein !== null) {
+          records.push({ date, intake, weight, protein });
+        }
+      });
+
+      return { records, errors };
+    }
+
+    function renderImportPreview(records) {
+      pendingImportRecords = records;
+      const rows = records.map((record) => {
+        const status = recordsByDate.has(record.date) ? "会覆盖" : "新增";
+        return `
+          <div class="import-preview-row">
+            <div>日期<strong>${record.date}</strong></div>
+            <div>摄入<strong>${record.intake} kcal</strong></div>
+            <div class="import-preview-badge">${status}</div>
+          </div>
+        `;
+      }).join("");
+
+      importPreview.innerHTML = `
+        <p class="import-preview-title">请先确认下面这些记录是否正确</p>
+        <div class="import-preview-list">${rows}</div>
+      `;
+      importPreview.classList.add("show");
+    }
+
+    function showPetSpeech() {
+      let nextIndex = Math.floor(Math.random() * PET_LINES.length);
+      if (nextIndex === lastPetLineIndex && PET_LINES.length > 1) {
+        nextIndex = (nextIndex + 1) % PET_LINES.length;
+      }
+
+      lastPetLineIndex = nextIndex;
+      petSpeech.textContent = PET_LINES[nextIndex];
+      petSpeech.classList.remove("show");
+      petButton.classList.remove("is-talking");
+
+      window.requestAnimationFrame(() => {
+        petSpeech.classList.add("show");
+        petButton.classList.add("is-talking");
+      });
+
+      window.clearTimeout(petSpeechTimer);
+      petSpeechTimer = window.setTimeout(() => {
+        petSpeech.classList.remove("show");
+        petButton.classList.remove("is-talking");
+      }, 6500);
+    }
+
+    document.querySelector("#recordForm").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const result = recordFromInputs();
+      if (result.error) {
+        setMessage(formMessage, result.error, "error");
+        return;
+      }
+
+      recordsByDate.set(result.date, result);
+      selectedDate = result.date;
+      calendarYear = Number(result.date.slice(0, 4));
+      calendarMonth = Number(result.date.slice(5, 7)) - 1;
+      saveRecords();
+      render();
+      setMessage(formMessage, `已保存 ${formatDateText(result.date)} 的记录，顶部状态和趋势也更新了。`, "success");
+      recordForm.classList.remove("save-pulse");
+      void recordForm.offsetWidth;
+      recordForm.classList.add("save-pulse");
+    });
+
+    document.querySelector("#clearFormBtn").addEventListener("click", () => {
+      clearFormForDate(today);
+      selectedDate = today;
+      setMessage(formMessage, "", "");
+      render();
+    });
+
+    document.querySelector("#importBtn").addEventListener("click", () => {
+      const text = importText.value.trim();
+      if (!text) {
+        clearImportPreview();
+        setMessage(importMessage, "请先粘贴要导入的数据。", "error");
+        return;
+      }
+
+      const result = parseImportRows(text);
+      if (result.errors.length) {
+        clearImportPreview();
+        setMessage(importMessage, result.errors.slice(0, 4).join("；"), "error");
+        return;
+      }
+      if (!result.records.length) {
+        clearImportPreview();
+        setMessage(importMessage, "没有找到可以导入的数据。", "error");
+        return;
+      }
+
+      renderImportPreview(result.records);
+      setMessage(importMessage, `已识别 ${result.records.length} 条记录。预览里标着“新增”或“会覆盖”，确认无误后再点“确认录入”。`, "success");
+    });
+
+    confirmImportBtn.addEventListener("click", () => {
+      if (!pendingImportRecords.length) {
+        setMessage(importMessage, "请先点“先预览”，确认页面识别正确。", "error");
+        return;
+      }
+
+      pendingImportRecords.forEach((record) => recordsByDate.set(record.date, record));
+      selectedDate = pendingImportRecords[pendingImportRecords.length - 1].date;
+      calendarYear = Number(selectedDate.slice(0, 4));
+      calendarMonth = Number(selectedDate.slice(5, 7)) - 1;
+      saveRecords();
+      render();
+      setMessage(importMessage, `已录入 ${pendingImportRecords.length} 条记录，日历和趋势已经一起更新。`, "success");
+      clearImportPreview();
+    });
+
+    document.querySelector("#clearImportBtn").addEventListener("click", () => {
+      importText.value = "";
+      clearImportPreview();
+      setMessage(importMessage, "", "");
+    });
+
+    importText.addEventListener("input", () => {
+      clearImportPreview();
+      setMessage(importMessage, "", "");
+    });
+
+    document.querySelector("#exportBtn").addEventListener("click", () => {
+      const sorted = getSortedRecords();
+      if (!sorted.length) {
+        showToast("没有数据可以导出。", "error");
+        return;
+      }
+      const header = "日期,摄入(kcal),体重(kg),蛋白质(g),饮水(ml)";
+      const rows = sorted.map(r => [
+        r.date,
+        r.intake || "",
+        r.weight || "",
+        r.protein || "",
+        r.water || ""
+      ].join(","));
+      const csv = "﻿" + header + "\n" + rows.join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `每日饮食_${today}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast(`已导出 ${sorted.length} 条记录。`, "success");
+    });
+
+    document.querySelector("#fileImportInput").addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const content = ev.target.result;
+        let records = [];
+        if (file.name.endsWith(".json")) {
+          try {
+            const data = JSON.parse(content);
+            if (Array.isArray(data)) {
+              records = data.filter(r => r.date && isValidDate(r.date)).map(r => ({
+                date: r.date,
+                intake: String(r.intake || ""),
+                weight: String(r.weight || ""),
+                protein: String(r.protein || ""),
+                water: String(r.water || "")
+              }));
+            }
+          } catch {
+            showToast("JSON 格式错误。", "error");
+            e.target.value = "";
+            return;
+          }
+        } else {
+          const lines = content.split("\n").map(l => l.trim()).filter(l => l);
+          const startLine = lines[0].includes("日期") ? 1 : 0;
+          const text = lines.slice(startLine).join("\n");
+          const result = parseImportRows(text);
+          if (result.errors.length) {
+            showToast(result.errors.slice(0, 2).join("；"), "error");
+            e.target.value = "";
+            return;
+          }
+          records = result.records;
+        }
+        if (!records.length) {
+          showToast("文件中没有找到有效记录。", "error");
+          e.target.value = "";
+          return;
+        }
+        records.forEach(r => recordsByDate.set(r.date, r));
+        selectedDate = records[records.length - 1].date;
+        calendarYear = Number(selectedDate.slice(0, 4));
+        calendarMonth = Number(selectedDate.slice(5, 7)) - 1;
+        saveRecords();
+        render();
+        showToast(`已从文件导入 ${records.length} 条记录。`, "success");
+        e.target.value = "";
+      };
+      reader.readAsText(file);
+    });
+
+    document.querySelector("#prevMonthBtn").addEventListener("click", () => {
+      calendarMonth -= 1;
+      if (calendarMonth < 0) {
+        calendarMonth = 11;
+        calendarYear -= 1;
+      }
+      renderCalendar();
+    });
+
+    document.querySelector("#nextMonthBtn").addEventListener("click", () => {
+      calendarMonth += 1;
+      if (calendarMonth > 11) {
+        calendarMonth = 0;
+        calendarYear += 1;
+      }
+      renderCalendar();
+    });
+
+    document.addEventListener("keydown", (e) => {
+      const tag = e.target.tagName;
+      const isInput = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        e.preventDefault();
+        document.querySelector("#recordForm").requestSubmit();
+        return;
+      }
+
+      if (isInput) return;
+
+      if (e.key === "ArrowLeft") {
+        calendarMonth -= 1;
+        if (calendarMonth < 0) { calendarMonth = 11; calendarYear -= 1; }
+        renderCalendar();
+      } else if (e.key === "ArrowRight") {
+        calendarMonth += 1;
+        if (calendarMonth > 11) { calendarMonth = 0; calendarYear += 1; }
+        renderCalendar();
+      } else if (e.key === "t" || e.key === "T") {
+        calendarYear = Number(today.slice(0, 4));
+        calendarMonth = Number(today.slice(5, 7)) - 1;
+        selectedDate = today;
+        render();
+      }
+    });
+
+    calendar.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-date]");
+      if (!button) return;
+      selectedDate = button.dataset.date;
+      const record = recordsByDate.get(selectedDate);
+      if (record) {
+        fillForm(record);
+        setMessage(formMessage, "已载入这一天的记录，可以直接修改后保存。", "success");
+      } else {
+        clearFormForDate(selectedDate);
+        setMessage(formMessage, "已选择这一天。填写摄入后点保存，就会新增当天记录。", "success");
+      }
+      render();
+      intakeInput.focus();
+    });
+
+    let touchStartX = 0;
+    calendar.addEventListener("touchstart", (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+    }, { passive: true });
+    calendar.addEventListener("touchend", (e) => {
+      const diff = e.changedTouches[0].screenX - touchStartX;
+      if (Math.abs(diff) < 50) return;
+      if (diff > 0) {
+        calendarMonth -= 1;
+        if (calendarMonth < 0) { calendarMonth = 11; calendarYear -= 1; }
+      } else {
+        calendarMonth += 1;
+        if (calendarMonth > 11) { calendarMonth = 0; calendarYear += 1; }
+      }
+      renderCalendar();
+    }, { passive: true });
+
+    recordsBox.addEventListener("click", (event) => {
+      const editBtn = event.target.closest("[data-edit]");
+      if (editBtn) {
+        selectedDate = editBtn.dataset.edit;
+        calendarYear = Number(selectedDate.slice(0, 4));
+        calendarMonth = Number(selectedDate.slice(5, 7)) - 1;
+        fillForm(recordsByDate.get(selectedDate));
+        setMessage(formMessage, "已把这一天的数据放到左侧，可以直接修改后保存。", "success");
+        render();
+        return;
+      }
+      const deleteBtn = event.target.closest("[data-delete]");
+      if (deleteBtn) {
+        const date = deleteBtn.dataset.delete;
+        if (!confirm(`确定要删除 ${date} 的记录吗？`)) return;
+        recordsByDate.delete(date);
+        saveRecords();
+        render();
+        showToast(`已删除 ${date} 的记录。`, "success");
+      }
+    });
+
+    petButton.addEventListener("click", showPetSpeech);
+    charts.addEventListener("click", (event) => {
+      const rangeBtn = event.target.closest("[data-range]");
+      if (rangeBtn) {
+        chartRange = Number(rangeBtn.dataset.range);
+        render();
+        return;
+      }
+      const viewBtn = event.target.closest("[data-view]");
+      if (viewBtn) {
+        chartView = viewBtn.dataset.view;
+        render();
+      }
+    });
+    saveTargetsBtn.addEventListener("click", saveTargets);
+    [intakeInput, proteinInput].forEach((input) => {
+      input.addEventListener("input", renderTargetProgress);
+    });
+
+    // Dark mode toggle
+    const themeToggle = document.querySelector("#themeToggle");
+    const THEME_KEY = "dailyDietThemeV1";
+
+    function applyTheme(theme) {
+      if (theme === "dark") {
+        document.documentElement.setAttribute("data-theme", "dark");
+        themeToggle.textContent = "☀️";
+      } else {
+        document.documentElement.removeAttribute("data-theme");
+        themeToggle.textContent = " ";
+      }
+    }
+
+    function initTheme() {
+      const saved = localStorage.getItem(THEME_KEY);
+      if (saved) {
+        applyTheme(saved);
+      } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+        applyTheme("dark");
+      } else {
+        applyTheme("light");
+      }
+    }
+
+    themeToggle.addEventListener("click", () => {
+      const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+      const next = isDark ? "light" : "dark";
+      applyTheme(next);
+      localStorage.setItem(THEME_KEY, next);
+    });
+
+    initTheme();
+
+    loadTargets();
+    loadRecords();
+    if (recordsByDate.has(today)) {
+      fillForm(recordsByDate.get(today));
+    } else {
+      dateInput.value = today;
+    }
+    todayText.textContent = `今天：${formatDateText(today)}`;
+    render();
+  </script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("sw.js").catch(() => {});
+    }
+  </script>
+</body>
+</html>
+
