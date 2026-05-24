@@ -114,7 +114,7 @@
       align-items: stretch;
       gap: 18px;
       margin-bottom: 20px;
-      padding: 24px;
+      padding: 20px 24px;
       border: 1px solid var(--line);
       border-radius: 30px;
       background: var(--panel);
@@ -131,22 +131,31 @@
 
     h1 {
       margin: 0;
-      font-size: clamp(30px, 4vw, 46px);
+      font-size: clamp(34px, 5vw, 52px);
       line-height: 1.1;
       font-weight: 780;
       letter-spacing: 0;
     }
 
+    .subtitle-en {
+      margin: 4px 0 0;
+      color: var(--soft);
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
     .subtitle {
-      margin: 10px 0 0;
+      margin: 6px 0 0;
       color: var(--muted);
-      font-size: 15px;
+      font-size: 14px;
       line-height: 1.6;
     }
 
     .today-pill {
       width: fit-content;
-      margin-top: 16px;
+      margin-top: 12px;
       padding: 9px 13px;
       border: 1px solid var(--line);
       border-radius: 999px;
@@ -1342,6 +1351,10 @@
         max-width: 22em;
       }
 
+      .subtitle-en {
+        font-size: 14px;
+      }
+
       .today-summary {
         grid-template-columns: 1fr;
       }
@@ -1455,7 +1468,8 @@
     <header class="topbar">
       <div class="hero-copy">
         <h1>每日饮食记录</h1>
-        <p class="subtitle">记录摄入、体重、蛋白质。数据保存在当前浏览器里，刷新后仍会留下。</p>
+        <p class="subtitle-en">Daily Diet Tracker</p>
+        <p class="subtitle">记录摄入、体重、蛋白质和饮水，数据保存在本地浏览器。</p>
         <div class="today-pill" id="todayText">今天</div>
       </div>
       <div class="today-summary" id="todaySummary" aria-label="今天状态和最近记录">
