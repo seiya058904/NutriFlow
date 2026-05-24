@@ -600,13 +600,13 @@
     }
 
     .range-btn {
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 4px 10px;
+      border: 1.5px solid var(--line);
+      border-radius: 10px;
+      padding: 6px 14px;
       background: transparent;
       color: var(--muted);
-      font-size: 12px;
-      font-weight: 600;
+      font-size: 13px;
+      font-weight: 700;
       cursor: pointer;
       transition: background 0.15s, color 0.15s;
     }
@@ -2214,8 +2214,8 @@
       const intakeValues = ranged.map((record, index) => ({ index, date: record.date, value: record.intake }));
       const targetIntake = dailyTargets.intake && Number(dailyTargets.intake) > 0 ? Number(dailyTargets.intake) : null;
       const extraCharts = [
-        compactMetricCard(sorted, "weight", "体重", "kg", "var(--green)", "#34c759"),
-        compactMetricCard(sorted, "protein", "蛋白质", "g", "var(--orange)", "#ff9500")
+        compactMetricCard(ranged, "weight", "体重", "kg", "var(--green)", "#34c759"),
+        compactMetricCard(ranged, "protein", "蛋白质", "g", "var(--orange)", "#ff9500")
       ].filter(Boolean).join("");
 
       charts.innerHTML = makeIntakeOverview(ranged, intakeValues, targetIntake, sorted.length) + extraCharts;
@@ -2273,10 +2273,17 @@
 
       if (!values.length) return "";
 
+      const activeRange = chartRange || 0;
+
       return `
         <div class="chart-card">
           <div class="chart-head">
             <h3 class="chart-title"><span class="dot" style="background:${colorVar}"></span>${label}</h3>
+            <div class="chart-range-btns">
+              <button class="range-btn${activeRange === 7 ? " active" : ""}" type="button" data-range="7">7天</button>
+              <button class="range-btn${activeRange === 30 ? " active" : ""}" type="button" data-range="30">30天</button>
+              <button class="range-btn${activeRange === 0 ? " active" : ""}" type="button" data-range="0">全部</button>
+            </div>
             <span class="chart-note">${values.length} 个点</span>
           </div>
           <div class="chart-frame">${makeCompactChart(records, values, [], color, color, unit)}</div>
