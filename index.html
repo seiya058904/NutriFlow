@@ -2059,6 +2059,11 @@
           <span class="summary-note">${targetNoteForToday(todayRecord, "water", "饮水")}</span>
         </div>
         <div class="summary-card">
+          <span class="summary-label">连续记录</span>
+          <strong class="summary-value">${sorted.length ? consecutiveRecordDays(sorted) + "天" : "--"}</strong>
+          <span class="summary-note">${sorted.length ? recordHabitReview(sorted) : "开始记录吧"}</span>
+        </div>
+        <div class="summary-card">
           <span class="summary-label">今天蛋白</span>
           <strong class="summary-value">${todayRecord ? valueOrEmpty(todayRecord.protein, "g") : "未填写"}</strong>
           <span class="summary-note">${targetNoteForToday(todayRecord, "protein", "蛋白")}</span>
@@ -2067,11 +2072,6 @@
           <span class="summary-label">最近记录</span>
           <strong class="summary-value">${latestText}</strong>
           <span class="summary-note">${latestNote}</span>
-        </div>
-        <div class="summary-card">
-          <span class="summary-label">连续记录</span>
-          <strong class="summary-value">${sorted.length ? consecutiveRecordDays(sorted) + "天" : "--"}</strong>
-          <span class="summary-note">${sorted.length ? recordHabitReview(sorted) : "开始记录吧"}</span>
         </div>
       `;
     }
