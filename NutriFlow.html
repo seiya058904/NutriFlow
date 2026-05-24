@@ -1959,6 +1959,11 @@
           <strong class="summary-value">${latestText}</strong>
           <span class="summary-note">${latestNote}</span>
         </div>
+        <div class="summary-card">
+          <span class="summary-label">连续记录</span>
+          <strong class="summary-value">${sorted.length ? consecutiveRecordDays(sorted) + "天" : "--"}</strong>
+          <span class="summary-note">${sorted.length ? recordHabitReview(sorted) : "开始记录吧"}</span>
+        </div>
       `;
     }
 
@@ -1996,6 +2001,13 @@
       cards.push(statCard("平均饮水", averageWater === null ? "未填" : roundValue(averageWater), averageWater === null ? "" : "ml/天"));
       cards.push(statCard("平均周体重变化", weeklyWeightChange === null ? "未填" : formatSignedValue(weeklyWeightChange), weeklyWeightChange === null ? "" : "kg/周", weeklyWeightReview));
 
+      const last7 = sorted.slice(-7);
+      const avgIntake7 = averageFilledValue(last7, "intake");
+      const rate = weeklyTargetRate(sorted, dailyTargets.intake);
+      cards.push(statCard("本周达标", rate.text, "", rate.note));
+      cards.push(statCard("平均摄入", avgIntake7 === null ? "--" : roundValue(avgIntake7), avgIntake7 === null ? "" : "kcal/天", "近 7 天"));
+      cards.push(statCard("目标热量", dailyTargets.intake || "--", dailyTargets.intake ? "kcal" : "", "每日目标"));
+
       stats.innerHTML = cards.join("");
     }
 
@@ -2007,6 +2019,18 @@
 
       if (!values.length) return null;
       return values.reduce((sum, value) => sum + value, 0) / values.length;
+    }
+
+    function weeklyTargetRate(records, target) {
+      if (!target || !Number(target)) return { text: "--", note: "未设目标" };
+      const last7 = records.slice(-7);
+      const withData = last7.filter(r => r.intake !== "");
+      if (!withData.length) return { text: "--", note: "暂无数据" };
+      const hit = withData.filter(r => {
+        const s = metricTargetStatus("热量", r.intake, target, "kcal");
+        return s && s.level === "good";
+      }).length;
+      return { text: `${hit}/${withData.length}`, note: "本周达标" };
     }
 
     function averageWeeklyWeightChange(records) {
