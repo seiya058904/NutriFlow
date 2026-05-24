@@ -831,6 +831,12 @@
       transform: rotate(45deg);
     }
 
+    .target-marker.metric-weight {
+      border-radius: 2px;
+      width: 6px;
+      height: 10px;
+    }
+
     .target-status-good,
     .target-progress-fill.target-status-good {
       background: #34c759;
@@ -2208,8 +2214,8 @@
       const intakeValues = ranged.map((record, index) => ({ index, date: record.date, value: record.intake }));
       const targetIntake = dailyTargets.intake && Number(dailyTargets.intake) > 0 ? Number(dailyTargets.intake) : null;
       const extraCharts = [
-        compactMetricCard(ranged, "weight", "体重", "kg", "var(--green)", "#34c759"),
-        compactMetricCard(ranged, "protein", "蛋白质", "g", "var(--orange)", "#ff9500")
+        compactMetricCard(sorted, "weight", "体重", "kg", "var(--green)", "#34c759"),
+        compactMetricCard(sorted, "protein", "蛋白质", "g", "var(--orange)", "#ff9500")
       ].filter(Boolean).join("");
 
       charts.innerHTML = makeIntakeOverview(ranged, intakeValues, targetIntake, sorted.length) + extraCharts;
@@ -2523,11 +2529,15 @@
 
     function targetChecksForRecord(record) {
       if (!record) return [];
-      return [
+      const checks = [
         metricTargetStatus("热量", record.intake, dailyTargets.intake, "kcal"),
         metricTargetStatus("蛋白", record.protein, dailyTargets.protein, "g"),
         metricTargetStatus("饮水", record.water === undefined ? "" : record.water, dailyTargets.water, "ml")
       ].filter(Boolean);
+      if (record.weight !== "" && record.weight !== undefined && Number(record.weight) > 0) {
+        checks.push({ key: "weight", level: "good", label: "已记录", text: `体重 ${record.weight} kg`, ratio: null });
+      }
+      return checks;
     }
 
     function targetDotsForRecord(record) {
