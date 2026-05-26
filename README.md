@@ -1,5 +1,8 @@
 NutriFlow
 
+
+<img width="1536" height="1024" alt="project-nutriflow" src="https://github.com/user-attachments/assets/fd030c6c-cc89-43b7-9073-93aaf4e1446b" />
+
 Minimal Daily Nutrition & Weight Tracking
 
 极简每日饮食与体重趋势记录工具
@@ -12,6 +15,4 @@ Minimal Daily Nutrition & Weight Tracking
 
 数据保存在浏览器本地（localStorage），无需服务器，刷新页面数据仍在。
 
-<img width="1024" height="1536" alt="project-nutriflow" src="https://github.com/user-attachments/assets/39edb61d-ab68-4371-ae20-8993f42be47b" />
 
-<img width="2171" height="4005" alt="image" src="https://github.com/user-attachments/assets/30618bbb-6267-4ae4-a751-a32fde36f811" />
