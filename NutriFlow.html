@@ -1903,8 +1903,9 @@
 
     function render() {
       const sorted = getSortedRecords();
-      renderTodaySummary(sorted);
-      renderStats(sorted);
+      const habitReview = sorted.length ? recordHabitReview(sorted) : "";
+      renderTodaySummary(sorted, habitReview);
+      renderStats(sorted, habitReview);
       renderCharts(sorted);
       renderCalendar();
       renderReview();
@@ -1945,7 +1946,7 @@
       return "肥胖";
     }
 
-    function renderTodaySummary(sorted) {
+    function renderTodaySummary(sorted, habitReview) {
       const todayRecord = recordsByDate.get(today);
       const latest = sorted[sorted.length - 1];
       const latestText = latest ? `${latest.date} · ${roundValue(Number(latest.intake))} kcal` : "还没有记录";
@@ -1967,7 +1968,7 @@
         <div class="summary-card">
           <span class="summary-label">连续记录</span>
           <strong class="summary-value">${sorted.length ? consecutiveRecordDays(sorted) + "天" : "--"}</strong>
-          <span class="summary-note">${sorted.length ? recordHabitReview(sorted) : "开始记录吧"}</span>
+          <span class="summary-note">${sorted.length ? habitReview : "开始记录吧"}</span>
         </div>
         <div class="summary-card">
           <span class="summary-label">今天蛋白</span>
@@ -1982,7 +1983,7 @@
       `;
     }
 
-    function renderStats(sorted) {
+    function renderStats(sorted, habitReview) {
       if (!sorted.length) {
         stats.innerHTML = `
           <div class="empty-state" style="grid-column: 1 / -1;">还没有记录。先保存今天的摄入，趋势会立刻出现。</div>
@@ -1995,13 +1996,12 @@
       const averageWater = averageFilledValue(sorted, "water");
       const weeklyWeightChange = averageWeeklyWeightChange(sorted);
       const weeklyWeightReview = weightTrendReview(sorted, weeklyWeightChange);
-      const recordReview = recordHabitReview(sorted);
       const bmi = calculateBMI(latest.weight, dailyTargets.height);
       const bmiText = bmi === null ? "未填" : roundValue(bmi);
       const bmiNote = bmi === null ? "设置身高后显示" : bmiCategory(bmi);
 
       const cards = [
-        statCard("已记录", sorted.length, "天", recordReview),
+        statCard("已记录", sorted.length, "天", habitReview),
         statCard("最近摄入", latest.intake, "kcal"),
         statCard("最近体重", latest.weight === "" ? "未填" : latest.weight, latest.weight === "" ? "" : "kg"),
         statCard("最近饮水", (latest.water === "" || latest.water === undefined) ? "未填" : latest.water, (latest.water === "" || latest.water === undefined) ? "" : "ml"),
@@ -2018,8 +2018,10 @@
 
       const last7 = sorted.slice(-7);
       const avgIntake7 = averageFilledValue(last7, "intake");
-      const rate = weeklyTargetRate(sorted, dailyTargets.intake);
+      const rate = weeklyTargetRate(last7, dailyTargets.intake, "热量", "kcal");
+      const proteinRate = weeklyTargetRate(last7, dailyTargets.protein, "蛋白", "g");
       cards.push(statCard("本周达标", rate.text, "", rate.note));
+      cards.push(statCard("本周蛋白达标", proteinRate.text, "", proteinRate.note));
       cards.push(statCard("平均摄入", avgIntake7 === null ? "--" : roundValue(avgIntake7), avgIntake7 === null ? "" : "kcal/天", "近 7 天"));
       cards.push(statCard("目标热量", dailyTargets.intake || "--", dailyTargets.intake ? "kcal" : "", "每日目标"));
 
@@ -2036,13 +2038,16 @@
       return values.reduce((sum, value) => sum + value, 0) / values.length;
     }
 
-    function weeklyTargetRate(records, target) {
+    function weeklyTargetRate(records, target, targetMetricName, targetUnit) {
       if (!target || !Number(target)) return { text: "--", note: "未设目标" };
-      const last7 = records.slice(-7);
-      const withData = last7.filter(r => r.intake !== "");
+      const todayStr = toDateString(new Date());
+      const cutoff = toDateString(new Date(Date.now() - 6 * 86400000));
+      const last7Days = records.filter(r => r.date >= cutoff && r.date <= todayStr);
+      const withData = last7Days.filter(r => r[targetMetricName === "热量" ? "intake" : targetMetricName === "蛋白" ? "protein" : "water"] !== "");
       if (!withData.length) return { text: "--", note: "暂无数据" };
+      const dataKey = targetMetricName === "热量" ? "intake" : targetMetricName === "蛋白" ? "protein" : "water";
       const hit = withData.filter(r => {
-        const s = metricTargetStatus("热量", r.intake, target, "kcal");
+        const s = metricTargetStatus(targetMetricName, r[dataKey], target, targetUnit);
         return s && s.level === "good";
       }).length;
       return { text: `${hit}/${withData.length}`, note: "本周达标" };
