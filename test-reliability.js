@@ -60,7 +60,7 @@ for (const file of ["NutriFlow.html", "index.html"]) {
   assert.equal(instance.api.saveRecords(), false, `${file}: reports storage write failure`);
 
   assert.match(instance.api.makeIntakeOverview([], [], null), /该范围暂无记录/, `${file}: empty chart range is safe`);
-  const streak = (dates) => instance.api.consecutiveRecordDays(dates.map(date => ({ date }))); 
+  const streak = (dates) => instance.api.consecutiveRecordDays(dates.map(date => ({ date })));
   assert.equal(streak(["2026-07-27"]), 1, `${file}: today streak`);
   assert.equal(streak(["2026-07-26"]), 1, `${file}: yesterday streak`);
   assert.equal(streak(["2026-07-25"]), 0, `${file}: old streak`);
