@@ -1659,6 +1659,7 @@
 
   <script>
     const STORAGE_KEY = "dailyDietRecordsV1";
+    const CORRUPT_RECORDS_BACKUP_KEY = "dailyDietRecordsV1CorruptBackupV1";
     const TARGET_STORAGE_KEY = "dailyDietTargetsV1";
     const PET_LINES = [
       "体重今天像电梯，别急，先看一周趋势。",
@@ -1801,11 +1802,12 @@
     const saveTargetsBtn = document.querySelector("#saveTargetsBtn");
     const targetProgress = document.querySelector("#targetProgress");
 
-    const today = toDateString(new Date());
+    let today = toDateString(new Date());
     let selectedDate = today;
     let calendarYear = Number(today.slice(0, 4));
     let calendarMonth = Number(today.slice(5, 7)) - 1;
     let pendingImportRecords = [];
+    let corruptRecordsRaw = "";
     let lastPetLineIndex = -1;
     let petSpeechTimer = null;
     let dailyTargets = { intake: "", protein: "", height: "", water: "" };
@@ -1830,6 +1832,16 @@
       const number = Number(trimmed);
       if (!Number.isFinite(number) || number < 0) return null;
       return number;
+    }
+
+    function normalizeRecord(record) {
+      if (!record || !isValidDate(record.date)) return null;
+      const intake = readNumber(record.intake, true);
+      const weight = readNumber(record.weight ?? "", false);
+      const protein = readNumber(record.protein ?? "", false);
+      const water = readNumber(record.water ?? "", false);
+      if (intake === null || weight === null || protein === null || water === null) return null;
+      return { date: record.date, intake, weight, protein, water };
     }
 
     function setMessage(element, text, type) {
@@ -1865,22 +1877,20 @@
         const records = JSON.parse(saved);
         if (!Array.isArray(records)) return;
         records.forEach((record) => {
-          if (record && isValidDate(record.date) && Number.isFinite(Number(record.intake))) {
-            recordsByDate.set(record.date, {
-              date: record.date,
-              intake: Number(record.intake),
-              weight: record.weight === "" || record.weight === null ? "" : Number(record.weight),
-              protein: record.protein === "" || record.protein === null ? "" : Number(record.protein),
-              water: record.water === "" || record.water === null || record.water === undefined ? "" : Number(record.water)
-            });
-          }
+          const normalized = normalizeRecord(record);
+          if (normalized) recordsByDate.set(normalized.date, normalized);
         });
       } catch (error) {
         recordsByDate.clear();
+        corruptRecordsRaw = saved;
       }
     }
 
     function saveRecords() {
+      if (corruptRecordsRaw) {
+        localStorage.setItem(CORRUPT_RECORDS_BACKUP_KEY, corruptRecordsRaw);
+        corruptRecordsRaw = "";
+      }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(getSortedRecords()));
     }
 
@@ -1951,6 +1961,15 @@
       return Array.from(recordsByDate.values()).sort((a, b) => a.date.localeCompare(b.date));
     }
 
+    function recordsInLastCalendarDays(records, days) {
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      now.setDate(now.getDate() - (days - 1));
+      const cutoff = toDateString(now);
+      const todayStr = toDateString(new Date());
+      return records.filter((record) => record.date >= cutoff && record.date <= todayStr);
+    }
+
     function isValidDate(value) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
       const date = new Date(`${value}T00:00:00`);
@@ -2008,6 +2027,28 @@
       weightInput.value = "";
       proteinInput.value = "";
       waterInput.value = "";
+    }
+
+    function refreshToday() {
+      const nextToday = toDateString(new Date());
+      if (nextToday === today) return;
+      const previousToday = today;
+      today = nextToday;
+      todayText.textContent = `今天：${formatDateText(today)}`;
+      if (selectedDate === previousToday && dateInput.value === previousToday && !intakeInput.value && !weightInput.value && !proteinInput.value && !waterInput.value) {
+        selectedDate = today;
+        clearFormForDate(today);
+      }
+      render();
+    }
+
+    function scheduleTodayRefresh() {
+      const next = new Date();
+      next.setHours(24, 0, 1, 0);
+      window.setTimeout(() => {
+        refreshToday();
+        scheduleTodayRefresh();
+      }, next - new Date());
     }
 
     function render() {
@@ -2125,7 +2166,7 @@
       cards.push(statCard("平均饮水", averageWater === null ? "未填" : roundValue(averageWater), averageWater === null ? "" : "ml/天"));
       cards.push(statCard("平均周体重变化", weeklyWeightChange === null ? "未填" : formatSignedValue(weeklyWeightChange), weeklyWeightChange === null ? "" : "kg/周", weeklyWeightReview));
 
-      const last7 = sorted.slice(-7);
+      const last7 = recordsInLastCalendarDays(sorted, 7);
       const avgIntake7 = averageFilledValue(last7, "intake");
       const rate = weeklyTargetRate(last7, dailyTargets.intake, "热量", "kcal");
       const proteinRate = weeklyTargetRate(last7, dailyTargets.protein, "蛋白", "g");
@@ -2149,9 +2190,7 @@
 
     function weeklyTargetRate(records, target, targetMetricName, targetUnit) {
       if (!target || !Number(target)) return { text: "--", note: "未设目标" };
-      const todayStr = toDateString(new Date());
-      const cutoff = toDateString(new Date(Date.now() - 6 * 86400000));
-      const last7Days = records.filter(r => r.date >= cutoff && r.date <= todayStr);
+      const last7Days = recordsInLastCalendarDays(records, 7);
       const withData = last7Days.filter(r => r[targetMetricName === "热量" ? "intake" : targetMetricName === "蛋白" ? "protein" : "water"] !== "");
       if (!withData.length) return { text: "--", note: "暂无数据" };
       const dataKey = targetMetricName === "热量" ? "intake" : targetMetricName === "蛋白" ? "protein" : "water";
@@ -2179,6 +2218,7 @@
 
     function consecutiveRecordDays(records) {
       if (!records.length) return 0;
+      if (daysBetween(records[records.length - 1].date, toDateString(new Date())) > 1) return 0;
 
       let streak = 1;
       for (let index = records.length - 1; index > 0; index -= 1) {
@@ -2251,9 +2291,7 @@
         return;
       }
 
-      const ranged = chartRange && sorted.length > chartRange
-        ? sorted.slice(-chartRange)
-        : sorted;
+      const ranged = chartRange ? recordsInLastCalendarDays(sorted, chartRange) : sorted;
 
       const intakeValues = ranged.map((record, index) => ({ index, date: record.date, value: record.intake }));
       const targetIntake = dailyTargets.intake && Number(dailyTargets.intake) > 0 ? Number(dailyTargets.intake) : null;
@@ -2262,17 +2300,17 @@
         compactMetricCard(ranged, "protein", "蛋白质", "g", "var(--orange)", "#ff9500")
       ].filter(Boolean).join("");
 
-      charts.innerHTML = makeIntakeOverview(ranged, intakeValues, targetIntake, sorted.length) + extraCharts;
+      charts.innerHTML = makeIntakeOverview(ranged, intakeValues, targetIntake) + extraCharts;
     }
 
-    function makeIntakeOverview(records, values, targetIntake, totalCount) {
+    function makeIntakeOverview(records, values, targetIntake) {
       const averageValues = movingAverage(values, 7);
       const latest = values[values.length - 1].value;
       const average = Math.round(values.reduce((sum, point) => sum + point.value, 0) / values.length);
       const highest = values.reduce((max, point) => point.value > max.value ? point : max, values[0]);
       const lowest = values.reduce((min, point) => point.value < min.value ? point : min, values[0]);
-      const rangeLabel = totalCount > records.length ? `最近 ${records.length} 天` : `${records.length} 天全部显示`;
       const activeRange = chartRange || 0;
+      const rangeLabel = activeRange ? `近 ${activeRange} 天 · ${records.length} 个点` : `${records.length} 天全部显示`;
 
       const chartContent = chartView === "bar"
         ? makeWeeklyBarChart(records, targetIntake)
@@ -2941,17 +2979,16 @@
       reader.onload = (ev) => {
         const content = ev.target.result;
         let records = [];
+        let invalidCount = 0;
         if (file.name.endsWith(".json")) {
           try {
             const data = JSON.parse(content);
             if (Array.isArray(data)) {
-              records = data.filter(r => r.date && isValidDate(r.date)).map(r => ({
-                date: r.date,
-                intake: String(r.intake || ""),
-                weight: String(r.weight || ""),
-                protein: String(r.protein || ""),
-                water: String(r.water || "")
-              }));
+              data.forEach((entry) => {
+                const record = normalizeRecord(entry);
+                if (record) records.push(record);
+                else invalidCount += 1;
+              });
             }
           } catch {
             showToast("JSON 格式错误。", "error");
@@ -2981,7 +3018,7 @@
         calendarMonth = Number(selectedDate.slice(5, 7)) - 1;
         saveRecords();
         render();
-        showToast(`已从文件导入 ${records.length} 条记录。`, "success");
+        showToast(`已从文件导入 ${records.length} 条记录。${invalidCount ? `已跳过 ${invalidCount} 条无效数据。` : ""}`, "success");
         e.target.value = "";
       };
       reader.readAsText(file);
@@ -3143,6 +3180,9 @@
 
     loadTargets();
     loadRecords();
+    if (corruptRecordsRaw) {
+      setMessage(formMessage, "检测到已有记录无法读取；首次保存前请在开发者工具中备份 dailyDietRecordsV1，保存后原始内容会保留为 dailyDietRecordsV1CorruptBackupV1。", "error");
+    }
     importInitialRecords();
     if (recordsByDate.has(today)) {
       fillForm(recordsByDate.get(today));
@@ -3151,6 +3191,7 @@
     }
     todayText.textContent = `今天：${formatDateText(today)}`;
     render();
+    scheduleTodayRefresh();
   </script>
   <script>
     if ("serviceWorker" in navigator) {
