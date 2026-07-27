@@ -26,7 +26,7 @@ function app(file, clock, storage = {}) {
     confirm() { return true; }
   };
   vm.createContext(context);
-  vm.runInContext(`${script.slice(0, cut)}; globalThis.test = { loadRecords, saveRecords, getSortedRecords, consecutiveRecordDays, refreshToday, makeIntakeOverview, movingAverage, groupRecordsByCalendarWeek, recordsByDate, getState: () => ({ today, selectedDate, calendarYear, calendarMonth }) };`, context);
+  vm.runInContext(`${script.slice(0, cut)}; globalThis.test = { loadRecords, saveRecords, getSortedRecords, consecutiveRecordDays, refreshToday, makeIntakeOverview, movingAverage, groupRecordsByCalendarWeek, parseImportRows, applyRecordMutationAndSave, recordsByDate, getState: () => ({ today, selectedDate, calendarYear, calendarMonth }) };`, context);
   return { api: context.test, storage, context };
 }
 
@@ -58,6 +58,13 @@ for (const file of ["NutriFlow.html", "index.html"]) {
   instance = app(file, clock, { dailyDietRecordsV1: '[{"date":"2026-07-20","intake":1500}]', __throwOn: "dailyDietRecordsV1" });
   instance.api.loadRecords();
   assert.equal(instance.api.saveRecords(), false, `${file}: reports storage write failure`);
+
+  const before = JSON.stringify(instance.api.getSortedRecords());
+  const beforeState = JSON.stringify(instance.api.getState());
+  assert.equal(instance.api.applyRecordMutationAndSave(() => instance.api.recordsByDate.set("2026-07-27", { date: "2026-07-27", intake: 900 })), false, `${file}: transaction reports failed write`);
+  assert.equal(JSON.stringify(instance.api.getSortedRecords()), before, `${file}: failed transaction rolls records back`);
+  assert.equal(JSON.stringify(instance.api.getState()), beforeState, `${file}: failed transaction restores selection`);
+  assert.match(instance.api.parseImportRows("2026-07-20,100\n2026-07-20,200").errors.join(" "), /日期重复/, `${file}: text duplicate rejected`);
 
   assert.match(instance.api.makeIntakeOverview([], [], null), /该范围暂无记录/, `${file}: empty chart range is safe`);
   const streak = (dates) => instance.api.consecutiveRecordDays(dates.map(date => ({ date })));

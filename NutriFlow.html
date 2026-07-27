@@ -1718,6 +1718,7 @@
     let pendingImportRecords = [];
     let corruptRecordsRaw = "";
     let corruptRecordsStatus = "";
+    let storageUnavailable = false;
     let lastPetLineIndex = -1;
     let petSpeechTimer = null;
     let dailyTargets = { intake: "", protein: "", height: "", water: "" };
@@ -1760,6 +1761,33 @@
       if (text && type) showToast(text, type);
     }
 
+    function storageGet(key) {
+      try { return localStorage.getItem(key); }
+      catch (error) { storageUnavailable = true; return null; }
+    }
+
+    function storageSet(key, value) {
+      if (storageUnavailable) return "memory";
+      try { localStorage.setItem(key, value); return true; }
+      catch (error) {
+        if (error && error.name === "SecurityError") storageUnavailable = true;
+        return storageUnavailable ? "memory" : false;
+      }
+    }
+
+    function applyRecordMutationAndSave(mutate) {
+      const snapshot = { records: new Map(recordsByDate), selectedDate, calendarYear, calendarMonth };
+      mutate();
+      const saved = saveRecords();
+      if (saved) return saved;
+      recordsByDate.clear();
+      snapshot.records.forEach((record, date) => recordsByDate.set(date, record));
+      selectedDate = snapshot.selectedDate;
+      calendarYear = snapshot.calendarYear;
+      calendarMonth = snapshot.calendarMonth;
+      return false;
+    }
+
     function showToast(text, type) {
       const container = document.querySelector("#toastContainer");
       const toast = document.createElement("div");
@@ -1780,7 +1808,7 @@
 
     function loadRecords() {
       recordsByDate.clear();
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = storageGet(STORAGE_KEY);
       if (!saved) return;
 
       try {
@@ -1836,7 +1864,7 @@
 
     function loadTargets() {
       try {
-        const saved = JSON.parse(localStorage.getItem(TARGET_STORAGE_KEY) || "{}");
+        const saved = JSON.parse(storageGet(TARGET_STORAGE_KEY) || "{}");
         dailyTargets = {
           intake: Number.isFinite(Number(saved.intake)) && Number(saved.intake) > 0 ? Number(saved.intake) : "",
           protein: Number.isFinite(Number(saved.protein)) && Number(saved.protein) > 0 ? Number(saved.protein) : "",
@@ -2782,6 +2810,10 @@
         }
       });
 
+      const dates = records.map((record) => record.date);
+      const duplicates = dates.filter((date, index) => dates.indexOf(date) !== index);
+      if (duplicates.length) errors.push(`导入中日期重复：${Array.from(new Set(duplicates)).join("、")}`);
+
       return { records, errors };
     }
 
@@ -2836,11 +2868,12 @@
         return;
       }
 
-      recordsByDate.set(result.date, result);
-      selectedDate = result.date;
-      calendarYear = Number(result.date.slice(0, 4));
-      calendarMonth = Number(result.date.slice(5, 7)) - 1;
-      if (!saveRecords()) {
+      if (!applyRecordMutationAndSave(() => {
+        recordsByDate.set(result.date, result);
+        selectedDate = result.date;
+        calendarYear = Number(result.date.slice(0, 4));
+        calendarMonth = Number(result.date.slice(5, 7)) - 1;
+      })) {
         setMessage(formMessage, saveRecordsMessage(), "error");
         return;
       }
@@ -2888,11 +2921,12 @@
         return;
       }
 
-      pendingImportRecords.forEach((record) => recordsByDate.set(record.date, record));
-      selectedDate = pendingImportRecords[pendingImportRecords.length - 1].date;
-      calendarYear = Number(selectedDate.slice(0, 4));
-      calendarMonth = Number(selectedDate.slice(5, 7)) - 1;
-      if (!saveRecords()) {
+      if (!applyRecordMutationAndSave(() => {
+        pendingImportRecords.forEach((record) => recordsByDate.set(record.date, record));
+        selectedDate = pendingImportRecords[pendingImportRecords.length - 1].date;
+        calendarYear = Number(selectedDate.slice(0, 4));
+        calendarMonth = Number(selectedDate.slice(5, 7)) - 1;
+      })) {
         setMessage(importMessage, saveRecordsMessage(), "error");
         return;
       }
@@ -2977,11 +3011,12 @@
           e.target.value = "";
           return;
         }
-        records.forEach(r => recordsByDate.set(r.date, r));
-        selectedDate = records[records.length - 1].date;
-        calendarYear = Number(selectedDate.slice(0, 4));
-        calendarMonth = Number(selectedDate.slice(5, 7)) - 1;
-        if (!saveRecords()) {
+        if (!applyRecordMutationAndSave(() => {
+          records.forEach(r => recordsByDate.set(r.date, r));
+          selectedDate = records[records.length - 1].date;
+          calendarYear = Number(selectedDate.slice(0, 4));
+          calendarMonth = Number(selectedDate.slice(5, 7)) - 1;
+        })) {
           showToast(saveRecordsMessage(), "error");
           e.target.value = "";
           return;
@@ -3087,10 +3122,7 @@
       if (deleteBtn) {
         const date = deleteBtn.dataset.delete;
         if (!confirm(`确定要删除 ${date} 的记录吗？`)) return;
-        const record = recordsByDate.get(date);
-        recordsByDate.delete(date);
-        if (!saveRecords()) {
-          recordsByDate.set(date, record);
+        if (!applyRecordMutationAndSave(() => recordsByDate.delete(date))) {
           showToast(saveRecordsMessage(), "error");
           return;
         }
@@ -3133,7 +3165,7 @@
     }
 
     function initTheme() {
-      const saved = localStorage.getItem(THEME_KEY);
+      const saved = storageGet(THEME_KEY);
       if (saved) {
         applyTheme(saved);
       } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
@@ -3147,7 +3179,7 @@
       const isDark = document.documentElement.getAttribute("data-theme") === "dark";
       const next = isDark ? "light" : "dark";
       applyTheme(next);
-      localStorage.setItem(THEME_KEY, next);
+      storageSet(THEME_KEY, next);
     });
 
     initTheme();
