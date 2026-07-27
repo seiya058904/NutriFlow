@@ -26,7 +26,7 @@ function app(file, clock, storage = {}) {
     confirm() { return true; }
   };
   vm.createContext(context);
-  vm.runInContext(`${script.slice(0, cut)}; globalThis.test = { loadRecords, saveRecords, getSortedRecords, consecutiveRecordDays, refreshToday, makeIntakeOverview, movingAverage, groupRecordsByCalendarWeek, parseImportRows, applyRecordMutationAndSave, recordsByDate, getState: () => ({ today, selectedDate, calendarYear, calendarMonth }) };`, context);
+  vm.runInContext(`${script.slice(0, cut)}; globalThis.test = { loadRecords, saveRecords, getSortedRecords, consecutiveRecordDays, refreshToday, makeIntakeOverview, movingAverage, groupRecordsByCalendarWeek, parseImportRows, findDuplicateDates, applyRecordMutationAndSave, recordsByDate, getState: () => ({ today, selectedDate, calendarYear, calendarMonth }) };`, context);
   return { api: context.test, storage, context };
 }
 
@@ -65,6 +65,7 @@ for (const file of ["NutriFlow.html", "index.html"]) {
   assert.equal(JSON.stringify(instance.api.getSortedRecords()), before, `${file}: failed transaction rolls records back`);
   assert.equal(JSON.stringify(instance.api.getState()), beforeState, `${file}: failed transaction restores selection`);
   assert.match(instance.api.parseImportRows("2026-07-20,100\n2026-07-20,200").errors.join(" "), /日期重复/, `${file}: text duplicate rejected`);
+  assert.deepEqual(JSON.parse(JSON.stringify(instance.api.findDuplicateDates([{ date: "2026-07-20" }, { date: "2026-07-20" }, { date: "2026-07-21" }, { date: "2026-07-21" }]))), ["2026-07-20", "2026-07-21"], `${file}: shared duplicate helper`);
 
   assert.match(instance.api.makeIntakeOverview([], [], null), /该范围暂无记录/, `${file}: empty chart range is safe`);
   const streak = (dates) => instance.api.consecutiveRecordDays(dates.map(date => ({ date })));

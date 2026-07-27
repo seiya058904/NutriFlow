@@ -2900,6 +2900,13 @@
       return { date: dateInfo.date, intake, weight, protein };
     }
 
+    function findDuplicateDates(records) {
+      const seen = new Set();
+      const duplicates = new Set();
+      records.forEach((record) => { if (seen.has(record.date)) duplicates.add(record.date); seen.add(record.date); });
+      return Array.from(duplicates);
+    }
+
     function parseImportRows(text) {
       const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
       const records = [];
@@ -2922,9 +2929,8 @@
         }
       });
 
-      const dates = records.map((record) => record.date);
-      const duplicates = dates.filter((date, index) => dates.indexOf(date) !== index);
-      if (duplicates.length) errors.push(`导入中日期重复：${Array.from(new Set(duplicates)).join("、")}`);
+      const duplicates = findDuplicateDates(records);
+      if (duplicates.length) errors.push(`导入中日期重复：${duplicates.join("、")}`);
 
       return { records, errors };
     }
@@ -3123,6 +3129,8 @@
           e.target.value = "";
           return;
         }
+        const duplicates = findDuplicateDates(records);
+        if (duplicates.length) { showToast(`导入中日期重复：${duplicates.join("、")}`, "error"); e.target.value = ""; return; }
         if (!applyRecordMutationAndSave(() => {
           records.forEach(r => recordsByDate.set(r.date, r));
           selectedDate = records[records.length - 1].date;
