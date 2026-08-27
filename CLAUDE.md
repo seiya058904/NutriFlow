@@ -58,7 +58,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### 响应式断点
 
-CSS 使用 3 个断点：880px、620px、390px。
+CSS 断点：1199px（左栏收窄 280px、统计 3 列、记录行转紧凑卡）、880px（Header 堆叠、底部 Utility 单列）、767px（整体单列）、620px、390px。
 
 ### HTML 容器结构
 
@@ -68,16 +68,18 @@ CSS 使用 3 个断点：880px、620px、390px。
   └── #todaySummary (当日摘要卡片，含饮水)
 
 .app > .grid > .stack (左栏)
-  ├── #recordForm — 记录表单
-  │   ├── #dateInput / #intakeInput / #weightInput / #proteinInput / #waterInput
-  │   └── #targetIntakeInput / #targetProteinInput / #heightInput / #targetWaterInput — 目标设置
-  ├── #importText — 批量导入 + 导出/导入文件按钮
-  └── #calendar — 月历 + #reviewBox 选中日回顾
+  └── #recordForm — 记录表单（#copyLatestBtn 复制上次、.quick-fill 饮水快捷加减）
+      ├── #dateInput / #intakeInput / #weightInput / #proteinInput / #waterInput
+      └── #targetIntakeInput / #targetProteinInput / #heightInput / #targetWaterInput — 目标设置
 
 .app > .grid > .stack (右栏)
   ├── #stats — 统计卡片（含饮水、BMI）
   ├── #charts — SVG 图表（含范围/视图切换）
-  └── #records — 记录列表（含删除按钮）
+  └── #records — 记录列表（随左栏高度伸展、内部滚动，含删除按钮）
+
+  .app > .utility-grid (底部 Utility 区，≤880px 单列)
+  ├── #importText — 批量导入 + #exportBtn / #exportJsonBtn / #fileImportInput
+  └── #calendar — 月历（#todayBtn 回到今天）+ #reviewBox 选中日回顾
 
 #themeToggle — 左上角暗色模式切换
 #toastContainer — 右上角 Toast 通知
@@ -97,15 +99,15 @@ CSS 使用 3 个断点：880px、620px、390px。
 
 ## JS 函数速查
 
-共 61 个函数（NutriFlow.html 为 60 个，缺少 `importInitialRecords`）。
+共 75 个函数（index.html；NutriFlow.html 为 74 个，缺少 `importInitialRecords`）。
 
 **数据持久化：** `loadRecords` / `saveRecords` / `loadTargets` / `saveTargets`
 
 **日期/数字工具：** `toDateString` / `formatDateText` / `readNumber` / `setMessage` / `showToast` / `roundValue` / `formatSignedValue` / `daysBetween` / `isValidDate` / `normalizeDate`
 
-**表单：** `recordFromInputs` / `fillForm` / `clearFormForDate` / `clearImportPreview`
+**表单：** `recordFromInputs` / `fillForm` / `clearFormForDate` / `clearImportPreview` / `stepWater`
 
-**渲染（`render()` 为总入口）：** `renderTodaySummary` / `renderStats` / `renderCharts` / `renderCalendar` / `renderReview` / `renderTargetProgress` / `renderRecords`
+**渲染/视图（`render()` 为总入口）：** `renderTodaySummary` / `renderStats` / `renderCharts` / `renderCalendar` / `renderReview` / `renderTargetProgress` / `renderRecords` / `shiftMonth` / `jumpToToday`
 
 **统计：** `statCard` / `valueOrEmpty` / `targetNoteForToday` / `averageFilledValue` / `averageWeeklyWeightChange` / `consecutiveRecordDays` / `recordHabitReview` / `latestWeightValue` / `weightTrendReview` / `calculateBMI` / `bmiCategory`
 
@@ -129,11 +131,11 @@ CSS 使用 3 个断点：880px、620px、390px。
 
 - **改图表** → `makeCompactChart`（核心 SVG 生成）、`makeIntakeOverview`（热量总览卡片）、`makeWeeklyBarChart`（周均柱状图）
 - **改日期解析** → `normalizeDate`（单条记录）、`findDateInImportLine`（批量导入）
-- **改月历** → `renderCalendar` + `targetDotsForRecord`
+- **改月历/翻月/回到今天** → `renderCalendar` + `targetDotsForRecord` + `shiftMonth` / `jumpToToday`
 - **改统计** → `renderStats`、`averageWeeklyWeightChange`、`consecutiveRecordDays`
 - **改目标判定** → `metricTargetStatus`、`targetStatusForRecord`
 - **改宠物语录** → `showPetSpeech` 函数内的数组
 - **改暗色模式** → `[data-theme="dark"]` CSS + `applyTheme` JS
 - **改 BMI** → `calculateBMI` + `bmiCategory`
-- **改导出导入** → `#exportBtn` 和 `#fileImportInput` 事件处理
-- **改键盘快捷键** → `document.addEventListener("keydown", ...)` 处理器
+- **改导出导入** → `#exportBtn` / `#exportJsonBtn` / `#fileImportInput` 事件处理
+- **改键盘快捷键** → `document.addEventListener("keydown", ...)` 处理器（T 键复用 `jumpToToday`）
