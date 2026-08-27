@@ -27,6 +27,12 @@
       --input-bg: rgba(255, 255, 255, 0.86);
       --btn-secondary-bg: rgba(236, 239, 245, 0.94);
       --toast-bg: rgba(255, 255, 255, 0.96);
+      --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+      --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+      --dur-1: 160ms;
+      --dur-2: 280ms;
+      --dur-3: 460ms;
+      --section-gap: 18px;
     }
 
     [data-theme="dark"] {
@@ -57,27 +63,28 @@
       margin: 0;
       min-height: 100vh;
       overflow-x: hidden;
-      background:
-        radial-gradient(circle at 14% 8%, rgba(10, 132, 255, 0.15), transparent 30%),
-        radial-gradient(circle at 86% 0%, rgba(48, 209, 88, 0.13), transparent 28%),
-        linear-gradient(180deg, #fbfcff 0%, var(--bg) 44%, #eef2f8 100%);
+      background-color: var(--bg);
+      background-image: linear-gradient(180deg, #fbfcff 0%, var(--bg) 520px);
+      background-repeat: no-repeat;
       color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif;
       letter-spacing: 0;
-      transition: background 0.3s ease, color 0.3s ease;
+      transition: background-color 0.3s ease, color 0.3s ease;
     }
 
     [data-theme="dark"] body {
-      background:
-        radial-gradient(circle at 14% 8%, rgba(10, 132, 255, 0.08), transparent 30%),
-        radial-gradient(circle at 86% 0%, rgba(48, 209, 88, 0.06), transparent 28%),
-        linear-gradient(180deg, #1c1c1e 0%, var(--bg) 44%, #000 100%);
+      background-color: var(--bg);
+      background-image: linear-gradient(180deg, #1c1c1e 0%, var(--bg) 520px);
+      background-repeat: no-repeat;
     }
 
     body::before {
       content: "";
-      position: fixed;
-      inset: 0;
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 100vh;
       z-index: -1;
       background-image:
         linear-gradient(rgba(255, 255, 255, 0.42) 1px, transparent 1px),
@@ -101,19 +108,18 @@
     }
 
     .app {
-      width: calc(100% - 32px);
-      max-width: 1220px;
+      width: min(100% - 48px, 1400px);
       margin: 0 auto;
       padding: 34px 0 48px;
     }
 
     .topbar {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+      grid-template-columns: minmax(0, 1fr) minmax(360px, 400px);
       align-items: stretch;
       gap: 18px;
-      margin-bottom: 20px;
-      padding: 20px 24px;
+      margin-bottom: var(--section-gap);
+      padding: 14px 22px;
       border: 1px solid var(--line);
       border-radius: 30px;
       background: var(--panel);
@@ -175,8 +181,8 @@
     }
 
     .summary-card {
-      min-height: 96px;
-      padding: 14px;
+      min-height: 72px;
+      padding: 12px 14px;
       border: 1px solid var(--line);
       border-radius: 20px;
       background: var(--panel);
@@ -198,7 +204,7 @@
 
     .summary-value {
       display: block;
-      margin-top: 7px;
+      margin-top: 4px;
       font-size: 24px;
       line-height: 1.08;
       font-weight: 800;
@@ -207,7 +213,7 @@
 
     .summary-note {
       display: block;
-      margin-top: 7px;
+      margin-top: 4px;
       color: var(--soft);
       font-size: 12px;
       line-height: 1.45;
@@ -217,8 +223,8 @@
 
     .grid {
       display: grid;
-      grid-template-columns: minmax(316px, 398px) minmax(0, 1fr);
-      gap: 18px;
+      grid-template-columns: minmax(300px, 320px) minmax(0, 1fr);
+      gap: var(--section-gap);
       align-items: start;
     }
 
@@ -238,21 +244,21 @@
 
     .panel h2 {
       margin: 0 0 16px;
-      font-size: 21px;
+      font-size: 22px;
       line-height: 1.25;
       font-weight: 780;
     }
 
     .form {
       display: grid;
-      gap: 14px;
+      gap: 12px;
     }
 
     label {
       display: grid;
       gap: 8px;
       color: var(--muted);
-      font-size: 13px;
+      font-size: 14px;
       line-height: 1.2;
       font-weight: 720;
     }
@@ -274,7 +280,7 @@
     }
 
     textarea {
-      min-height: 142px;
+      min-height: 136px;
       resize: vertical;
       padding: 14px;
       line-height: 1.55;
@@ -511,18 +517,26 @@
 
     .stack {
       display: grid;
-      gap: 18px;
+      gap: 14px;
+    }
+
+    .utility-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(340px, 0.9fr);
+      gap: var(--section-gap);
+      margin-top: var(--section-gap);
+      align-items: stretch;
     }
 
     .stats {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 12px;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
     }
 
     .stat {
-      min-height: 94px;
-      padding: 16px;
+      min-height: 120px;
+      padding: 18px;
       border: 1px solid var(--line);
       border-radius: 20px;
       background: var(--panel);
@@ -531,13 +545,13 @@
 
     .stat-name {
       color: var(--muted);
-      font-size: 13px;
+      font-size: 14px;
       font-weight: 700;
     }
 
     .stat-value {
-      margin-top: 8px;
-      font-size: clamp(22px, 3vw, 28px);
+      margin-top: 10px;
+      font-size: clamp(24px, 2.4vw, 30px);
       line-height: 1.1;
       font-weight: 760;
       overflow-wrap: anywhere;
@@ -563,7 +577,7 @@
 
     .charts {
       display: grid;
-      gap: 14px;
+      gap: 16px;
     }
 
     .chart-card {
@@ -743,7 +757,7 @@
     }
 
     .month-title {
-      font-size: 18px;
+      font-size: 20px;
       font-weight: 760;
     }
 
@@ -768,7 +782,7 @@
     .calendar {
       display: grid;
       grid-template-columns: repeat(7, minmax(0, 1fr));
-      gap: 8px;
+      gap: 6px 10px;
     }
 
     .weekday {
@@ -781,7 +795,7 @@
 
     .day {
       position: relative;
-      aspect-ratio: 1;
+      min-height: 40px;
       min-width: 0;
       border: 1px solid transparent;
       border-radius: 15px;
@@ -889,15 +903,15 @@
     }
 
     .review {
-      margin-top: 16px;
-      padding: 16px;
+      margin-top: 12px;
+      padding: 10px 14px;
       border-radius: 20px;
       background: var(--panel);
       border: 1px solid var(--line);
     }
 
     .review-date {
-      margin: 0 0 10px;
+      margin: 0 0 8px;
       font-size: 15px;
       font-weight: 760;
     }
@@ -909,7 +923,7 @@
     }
 
     .mini {
-      padding: 12px;
+      padding: 10px 12px;
       border-radius: 16px;
       background: var(--btn-secondary-bg);
     }
@@ -931,7 +945,7 @@
     .import-help {
       margin: 0 0 10px;
       color: var(--muted);
-      font-size: 13px;
+      font-size: 14px;
       line-height: 1.6;
     }
 
@@ -995,18 +1009,32 @@
 
     .records {
       display: grid;
+      align-content: start;
       gap: 10px;
       max-height: 420px;
       overflow: auto;
+      scroll-snap-type: y proximity;
       padding-right: 4px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--line) transparent;
+    }
+
+    .records::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .records::-webkit-scrollbar-thumb {
+      background: var(--line);
+      border-radius: 999px;
     }
 
     .record {
       display: grid;
-      grid-template-columns: minmax(110px, 1.2fr) repeat(4, minmax(78px, 1fr)) auto;
+      grid-template-columns: 132px repeat(4, minmax(0, 1fr)) auto;
       align-items: center;
-      gap: 10px;
-      padding: 12px;
+      gap: 12px 18px;
+      padding: 14px 16px;
+      scroll-snap-align: start;
       border: 1px solid var(--line);
       border-radius: 18px;
       background: var(--panel);
@@ -1014,24 +1042,25 @@
     }
 
     .record-date {
+      font-size: 15px;
       font-weight: 760;
     }
 
     .record-value {
       color: var(--muted);
-      font-size: 13px;
+      font-size: 14px;
     }
 
     .record-value strong {
       display: block;
       color: var(--text);
-      font-size: 15px;
+      font-size: 16px;
     }
 
     .link-btn {
       border: 0;
       border-radius: 14px;
-      padding: 9px 12px;
+      padding: 10px 14px;
       cursor: pointer;
       color: var(--blue);
       background: var(--btn-secondary-bg);
@@ -1056,6 +1085,7 @@
       display: flex;
       gap: 6px;
       align-items: center;
+      justify-self: end;
     }
 
     .empty-state {
@@ -1322,18 +1352,17 @@
     }
 
     @media (max-width: 880px) {
-      .grid {
+      .topbar {
         grid-template-columns: 1fr;
       }
 
-      .topbar {
-        grid-template-columns: 1fr;
+      .utility-grid {
+        grid-template-columns: minmax(0, 1fr);
       }
     }
 
     @media (max-width: 620px) {
       .app {
-        width: calc(100% - 48px);
         padding-top: 14px;
       }
 
@@ -1370,10 +1399,13 @@
       }
 
       .field-row,
-      .stats,
       .trend-summary,
       .review-values {
         grid-template-columns: 1fr;
+      }
+
+      .stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
       .button-row {
@@ -1394,21 +1426,12 @@
         font-size: 13px;
       }
 
-      .record {
-        grid-template-columns: 1fr 1fr 1fr;
-      }
-
       .import-preview-row {
         grid-template-columns: 1fr;
       }
 
       .import-preview-badge {
         justify-self: start;
-      }
-
-      .record-date,
-      .record .record-actions {
-        grid-column: 1 / -1;
       }
 
       .target-progress {
@@ -1446,10 +1469,6 @@
         flex-direction: column;
       }
 
-      .record {
-        grid-template-columns: 1fr;
-      }
-
       .day {
         min-height: 44px;
       }
@@ -1460,6 +1479,419 @@
         align-items: center;
         justify-content: center;
       }
+    }
+
+    /* —— 本轮增补：微交互、可达性与排版统一 —— */
+    .calendar-nav {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-width: 0;
+    }
+
+    .today-jump {
+      height: 40px;
+      padding: 0 16px;
+      border: 0;
+      border-radius: 999px;
+      background: var(--btn-secondary-bg);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 760;
+      cursor: pointer;
+      transition: transform 0.16s ease, box-shadow 0.16s ease;
+    }
+
+    .today-jump:hover {
+      transform: translateY(-1px);
+      box-shadow: inset 0 0 0 1px var(--line), var(--shadow-soft);
+    }
+
+    .water-block {
+      min-width: 0;
+    }
+
+    .quick-fill {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .chip-step {
+      height: 34px;
+      padding: 0 13px;
+      border: 0;
+      border-radius: 12px;
+      background: var(--btn-secondary-bg);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.14s ease, box-shadow 0.14s ease;
+    }
+
+    .chip-step:hover {
+      transform: translateY(-1px);
+      box-shadow: inset 0 0 0 1px var(--line), var(--shadow-soft);
+    }
+
+    .chip-step:active {
+      transform: translateY(0);
+    }
+
+    .stat,
+    .summary-card {
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .stat:hover,
+    .summary-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .record {
+      transition: background 0.16s ease;
+    }
+
+    .record:hover {
+      background: rgba(255, 255, 255, 0.55);
+    }
+
+    [data-theme="dark"] .record:hover {
+      background: rgba(58, 58, 60, 0.55);
+    }
+
+    .day.selected {
+      box-shadow: 0 6px 16px rgba(10, 132, 255, 0.25);
+    }
+
+    :focus-visible {
+      outline: 2px solid var(--blue);
+      outline-offset: 2px;
+    }
+
+    .summary-value,
+    .stat-value,
+    .stat-unit,
+    .trend-chip strong,
+    .tooltip-value,
+    .record-value strong,
+    .review-values strong {
+      font-variant-numeric: tabular-nums;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    /* —— 第三轮：全站动效系统与主题质感（借鉴 Stripe 氛围渐变 / Linear 暗色发丝线 / Apple 字距）—— */
+
+    /* Aurora 漂移光斑层（Stripe 式氛围渐变，纯 transform 动画保证性能） */
+    body::after {
+      content: "";
+      position: absolute;
+      top: -160px;
+      left: -160px;
+      right: -160px;
+      height: 1750px;
+      z-index: -1;
+      background:
+        radial-gradient(46% 36% at 14% 4%, rgba(10, 132, 255, 0.14), transparent 72%),
+        radial-gradient(40% 30% at 88% 0%, rgba(48, 209, 88, 0.10), transparent 72%),
+        radial-gradient(42% 38% at 78% 34%, rgba(94, 92, 230, 0.12), transparent 72%),
+        radial-gradient(30% 26% at 8% 46%, rgba(255, 159, 10, 0.06), transparent 72%);
+      animation: auroraDrift 22s var(--ease-out-soft) infinite alternate;
+      pointer-events: none;
+    }
+
+    [data-theme="dark"] body::after {
+      background:
+        radial-gradient(46% 36% at 14% 4%, rgba(10, 132, 255, 0.08), transparent 72%),
+        radial-gradient(40% 30% at 88% 0%, rgba(48, 209, 88, 0.05), transparent 72%),
+        radial-gradient(42% 38% at 78% 34%, rgba(94, 92, 230, 0.10), transparent 72%),
+        radial-gradient(30% 26% at 8% 46%, rgba(255, 159, 10, 0.04), transparent 72%);
+    }
+
+    @keyframes auroraDrift {
+      from { transform: translate3d(-1.5%, -1%, 0) rotate(-1.2deg); }
+      to { transform: translate3d(2%, 1.5%, 0) rotate(1.2deg); }
+    }
+
+    /* 页面载入编排：顶栏与面板依序浮现 */
+    @keyframes riseIn {
+      from { opacity: 0; transform: translateY(16px) scale(0.99); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .topbar {
+      animation: riseIn var(--dur-3) var(--ease-out-soft) both;
+    }
+
+    .grid .stack .panel {
+      animation: riseIn var(--dur-3) var(--ease-out-soft) both;
+    }
+
+    .grid .stack:nth-child(1) .panel:nth-child(1) { animation-delay: 90ms; }
+    .grid .stack:nth-child(1) .panel:nth-child(2) { animation-delay: 170ms; }
+    .grid .stack:nth-child(1) .panel:nth-child(3) { animation-delay: 250ms; }
+    .grid .stack:nth-child(2) .panel:nth-child(1) { animation-delay: 150ms; }
+    .grid .stack:nth-child(2) .panel:nth-child(2) { animation-delay: 230ms; }
+
+    /* 数据更新弹跳：统计卡数值在重渲染时轻跳一下 */
+    .stat-value {
+      animation: numberPop 0.32s var(--ease-spring) both;
+      transform-origin: left center;
+    }
+
+    /* 主按钮光泽扫过（Stripe 式微交互） */
+    .btn {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn:not(.secondary)::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(115deg, transparent 32%, rgba(255, 255, 255, 0.42) 50%, transparent 68%);
+      transform: translateX(-130%);
+      transition: transform 0.7s var(--ease-out-soft);
+      pointer-events: none;
+    }
+
+    .btn:not(.secondary):hover::after {
+      transform: translateX(130%);
+    }
+
+    /* Linear 式暗色深度：发丝线边框 + 表面阶梯替代重阴影 */
+    [data-theme="dark"] .panel,
+    [data-theme="dark"] .summary-card {
+      border-color: rgba(255, 255, 255, 0.085);
+      box-shadow: 0 18px 44px rgba(0, 0, 0, 0.42);
+    }
+
+    [data-theme="dark"] .stat:hover,
+    [data-theme="dark"] .summary-card:hover {
+      background: rgba(255, 255, 255, 0.045);
+      box-shadow: 0 10px 26px rgba(0, 0, 0, 0.4);
+    }
+
+    [data-theme="dark"] .chip-step:hover,
+    [data-theme="dark"] .today-jump:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    /* 目标进度条生长动效 */
+    @keyframes growBar {
+      from { transform: scaleX(0); }
+      to { transform: scaleX(1); }
+    }
+
+    .target-progress-fill {
+      animation: growBar 0.5s var(--ease-out-soft) both;
+      transform-origin: left center;
+    }
+
+    /* 大标题渐变文字（支持探测，渐进增强） */
+    @supports ((-webkit-background-clip: text) or (background-clip: text)) {
+      h1 {
+        background: linear-gradient(100deg, var(--blue-deep) 8%, var(--violet) 55%, var(--blue) 92%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      [data-theme="dark"] h1 {
+        background: linear-gradient(100deg, #409cff 8%, #a48bff 55%, #2997ff 92%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+    }
+
+    /* 字距精修（Apple 式负字距，仅小标题层级） */
+    .panel h2,
+    .month-title,
+    .chart-title {
+      letter-spacing: -0.2px;
+    }
+
+    /* 统一缓动曲线覆盖 */
+    .btn,
+    .icon-btn,
+    .today-jump,
+    .chip-step,
+    .day,
+    .record,
+    .stat,
+    .summary-card,
+    .theme-toggle {
+      transition-timing-function: var(--ease-out-soft);
+    }
+
+    .toast {
+      animation: toastIn 0.3s var(--ease-spring) forwards;
+    }
+
+    .toast.toast-out {
+      animation: toastOut 0.22s var(--ease-out-soft) forwards;
+    }
+
+    .pet-speech {
+      transition: opacity 0.22s var(--ease-out-soft), transform 0.22s var(--ease-spring);
+    }
+
+    /* 宠物待机漂浮（作用于内层 SVG，不干扰按钮 hover 位移与说话弹跳） */
+    .pet-art {
+      animation: petFloat 4s ease-in-out infinite;
+    }
+
+    @keyframes petFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-5px); }
+    }
+
+    .pet-button.is-talking .pet-art {
+      animation: petBounce 0.42s var(--ease-spring);
+    }
+
+    .range-btn:active {
+      transform: scale(0.96);
+    }
+
+    /* —— 第四轮：布局收敛（Desktop 双栏网格 / 中屏压缩 / 移动单栏重排）—— */
+    @media (min-width: 768px) and (max-width: 1199px) {
+      .grid {
+        grid-template-columns: 280px minmax(0, 1fr);
+      }
+
+      .stats {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 1199px) {
+      .record {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-areas:
+          "date date date actions"
+          "v1 v2 v3 v4";
+        row-gap: 8px;
+      }
+
+      .record-date {
+        grid-area: date;
+      }
+
+      .record > .record-value:nth-child(2) { grid-area: v1; }
+      .record > .record-value:nth-child(3) { grid-area: v2; }
+      .record > .record-value:nth-child(4) { grid-area: v3; }
+      .record > .record-value:nth-child(5) { grid-area: v4; }
+      .record-actions {
+        grid-area: actions;
+        align-self: center;
+      }
+
+      .chart-card .empty-state {
+        padding: 22px 16px;
+      }
+    }
+
+    @media (max-width: 767px) {
+      .grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    @media (max-width: 390px) {
+      .record {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-areas:
+          "date actions"
+          "v1 v2"
+          "v3 v4";
+      }
+    }
+
+    /* —— 第五轮：底部 Utility 区入场编排 —— */
+    .utility-grid .panel {
+      animation: riseIn var(--dur-3) var(--ease-out-soft) both;
+    }
+
+    .utility-grid .panel:nth-child(1) { animation-delay: 260ms; }
+    .utility-grid .panel:nth-child(2) { animation-delay: 330ms; }
+
+    /* —— 第七轮：高度平衡与滚动视口 —— */
+    @media (min-width: 768px) {
+      .grid > .stack:nth-child(2) {
+        align-self: stretch;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .grid > .stack:nth-child(2) > .panel:last-child {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .grid > .stack:nth-child(2) > .panel:last-child .panel-inner {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .grid > .stack:nth-child(2) > .panel:last-child .records {
+        flex: 1 1 0;
+        height: 0;
+        min-height: 320px;
+        max-height: none;
+        contain: size;
+      }
+    }
+
+    .utility-grid .panel-inner {
+      padding-top: 18px;
+      padding-bottom: 18px;
+    }
+
+    .utility-grid > .panel:first-child {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .utility-grid > .panel:first-child .panel-inner {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .utility-grid > .panel:first-child textarea {
+      flex: 1;
+    }
+
+    .review .empty-state {
+      padding: 10px 14px;
+    }
+
+    /* 文件导入 label 按钮与真实按钮对齐（抵消全局 label 表单样式的渗漏） */
+    label.btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: inherit;
     }
   </style>
 </head>
@@ -1515,12 +1947,20 @@
                   <input id="proteinInput" type="number" min="0" step="0.1" placeholder="例如 120">
                 </label>
               </div>
-              <label>
-                饮水 ml（可不填）
-                <input id="waterInput" type="number" min="0" step="10" placeholder="例如 2000">
-              </label>
+              <div class="water-block">
+                <label>
+                  饮水 ml（可不填）
+                  <input id="waterInput" type="number" min="0" step="10" placeholder="例如 2000">
+                </label>
+                <div class="quick-fill" role="group" aria-label="饮水快捷加减">
+                  <button class="chip-step" type="button" data-water-step="-250">−250</button>
+                  <button class="chip-step" type="button" data-water-step="250">+250</button>
+                  <button class="chip-step" type="button" data-water-step="500">+500</button>
+                </div>
+              </div>
               <div class="button-row">
                 <button class="btn" type="submit">保存记录</button>
+                <button class="btn secondary" type="button" id="copyLatestBtn" title="把最近一条已有记录的数值带入当前表单">复制上次</button>
                 <button class="btn secondary" type="button" id="clearFormBtn">清空输入</button>
               </div>
               <p class="message" id="formMessage"></p>
@@ -1563,39 +2003,6 @@
           </div>
         </section>
 
-        <section class="panel">
-          <div class="panel-inner">
-            <h2>批量导入</h2>
-            <p class="import-help">从表格复制后粘贴到这里。先写日期，再写摄入即可；也支持 2/12：650、2月12日 650大卡、2026.2.12，650 这类写法。体重和蛋白质可以空着。</p>
-            <textarea id="importText" placeholder="2/12：650&#10;2月13日 1000大卡&#10;2026.2.14，600"></textarea>
-            <div class="button-row" style="margin-top: 12px;">
-              <button class="btn" type="button" id="importBtn">先预览</button>
-              <button class="btn secondary" type="button" id="confirmImportBtn">确认录入</button>
-              <button class="btn secondary" type="button" id="clearImportBtn">清空导入框</button>
-            </div>
-            <div class="button-row" style="margin-top: 8px;">
-              <button class="btn secondary" type="button" id="exportBtn">导出 CSV</button>
-              <label class="btn secondary" style="cursor: pointer; margin: 0;">
-                导入文件
-                <input type="file" id="fileImportInput" accept=".csv,.json" style="display: none;">
-              </label>
-            </div>
-            <div class="import-preview" id="importPreview"></div>
-            <p class="message" id="importMessage"></p>
-          </div>
-        </section>
-
-        <section class="panel">
-          <div class="panel-inner">
-            <div class="calendar-tools">
-              <button class="icon-btn" type="button" id="prevMonthBtn" aria-label="上个月">‹</button>
-              <div class="month-title" id="monthTitle"></div>
-              <button class="icon-btn" type="button" id="nextMonthBtn" aria-label="下个月">›</button>
-            </div>
-            <div class="calendar" id="calendar"></div>
-            <div class="review" id="reviewBox"></div>
-          </div>
-        </section>
       </div>
 
       <div class="stack">
@@ -1615,6 +2022,46 @@
         </section>
       </div>
     </section>
+    <section class="utility-grid">
+      <section class="panel">
+        <div class="panel-inner">
+          <h2>批量导入</h2>
+          <p class="import-help">从表格复制后粘贴到这里。先写日期，再写摄入即可；也支持 2/12：650、2月12日 650大卡、2026.2.12，650 这类写法。体重和蛋白质可以空着。</p>
+          <textarea id="importText" placeholder="2/12：650&#10;2月13日 1000大卡&#10;2026.2.14，600"></textarea>
+          <div class="button-row" style="margin-top: 12px;">
+            <button class="btn" type="button" id="importBtn">先预览</button>
+            <button class="btn secondary" type="button" id="confirmImportBtn">确认录入</button>
+            <button class="btn secondary" type="button" id="clearImportBtn">清空导入框</button>
+          </div>
+          <div class="button-row" style="margin-top: 8px;">
+            <button class="btn secondary" type="button" id="exportBtn">导出 CSV</button>
+            <button class="btn secondary" type="button" id="exportJsonBtn" title="导出与浏览器存储一致的 JSON 备份，可用“导入文件”恢复">导出 JSON</button>
+            <label class="btn secondary" style="cursor: pointer; margin: 0;">
+              导入文件
+              <input type="file" id="fileImportInput" accept=".csv,.json" style="display: none;">
+            </label>
+          </div>
+          <div class="import-preview" id="importPreview"></div>
+          <p class="message" id="importMessage"></p>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-inner">
+          <div class="calendar-tools">
+            <div class="calendar-nav">
+              <button class="icon-btn" type="button" id="prevMonthBtn" aria-label="上个月">‹</button>
+              <div class="month-title" id="monthTitle"></div>
+              <button class="icon-btn" type="button" id="nextMonthBtn" aria-label="下个月">›</button>
+            </div>
+            <button class="today-jump" type="button" id="todayBtn" title="跳回本月并选中今天">今天</button>
+          </div>
+          <div class="calendar" id="calendar"></div>
+          <div class="review" id="reviewBox"></div>
+        </div>
+      </section>
+    </section>
+
   </main>
 
   <button class="theme-toggle" type="button" id="themeToggle" aria-label="切换深色模式"> </button>
@@ -2132,7 +2579,6 @@
       cards.push(statCard("本周达标", rate.text, "", rate.note));
       cards.push(statCard("本周蛋白达标", proteinRate.text, "", proteinRate.note));
       cards.push(statCard("平均摄入", avgIntake7 === null ? "--" : roundValue(avgIntake7), avgIntake7 === null ? "" : "kcal/天", "近 7 天"));
-      cards.push(statCard("目标热量", dailyTargets.intake || "--", dailyTargets.intake ? "kcal" : "", "每日目标"));
 
       stats.innerHTML = cards.join("");
     }
@@ -3084,10 +3530,7 @@
         shiftMonth(1);
         renderCalendar();
       } else if (e.key === "t" || e.key === "T") {
-        calendarYear = Number(today.slice(0, 4));
-        calendarMonth = Number(today.slice(5, 7)) - 1;
-        selectedDate = today;
-        render();
+        jumpToToday();
       }
     });
 
@@ -3161,6 +3604,55 @@
       input.addEventListener("input", renderTargetProgress);
     });
 
+    function jumpToToday() {
+      calendarYear = Number(today.slice(0, 4));
+      calendarMonth = Number(today.slice(5, 7)) - 1;
+      selectedDate = today;
+      render();
+    }
+
+    function stepWater(delta) {
+      const current = readNumber(waterInput.value, false);
+      const base = current === "" || current === null ? 0 : Number(current);
+      const next = Math.max(0, base + delta);
+      waterInput.value = String(next);
+      renderTargetProgress();
+    }
+
+    document.querySelector("#todayBtn").addEventListener("click", jumpToToday);
+
+    document.querySelector("#copyLatestBtn").addEventListener("click", () => {
+      const sorted = getSortedRecords();
+      const latest = sorted[sorted.length - 1];
+      if (!latest) {
+        setMessage(formMessage, "还没有任何记录可以复制。", "error");
+        return;
+      }
+      fillForm({ ...latest, date: dateInput.value || today });
+      setMessage(formMessage, `已带入 ${formatDateText(latest.date)} 的数值，确认后点“保存记录”。`, "success");
+      intakeInput.focus();
+    });
+
+    document.querySelectorAll("[data-water-step]").forEach((button) => {
+      button.addEventListener("click", () => stepWater(Number(button.dataset.waterStep)));
+    });
+
+    document.querySelector("#exportJsonBtn").addEventListener("click", () => {
+      const sorted = getSortedRecords();
+      if (!sorted.length) {
+        showToast("没有数据可以备份。", "error");
+        return;
+      }
+      const blob = new Blob([JSON.stringify(sorted)], { type: "application/json;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `每日饮食备份_${today}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      showToast(`已导出 ${sorted.length} 条 JSON 备份，可通过“导入文件”恢复。`, "success");
+    });
+
     // Dark mode toggle
     const themeToggle = document.querySelector("#themeToggle");
     const THEME_KEY = "dailyDietThemeV1";
@@ -3171,7 +3663,7 @@
         themeToggle.textContent = "☀️";
       } else {
         document.documentElement.removeAttribute("data-theme");
-        themeToggle.textContent = " ";
+        themeToggle.textContent = "🌙";
       }
     }
 
