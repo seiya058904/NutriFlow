@@ -1892,13 +1892,20 @@
         return;
       }
 
+      const previousTargets = { ...dailyTargets };
       dailyTargets = {
         intake: intake === 0 ? "" : intake,
         protein: protein === 0 ? "" : protein,
         height: height === 0 ? "" : height,
         water: water === 0 ? "" : water
       };
-      localStorage.setItem(TARGET_STORAGE_KEY, JSON.stringify(dailyTargets));
+      try {
+        localStorage.setItem(TARGET_STORAGE_KEY, JSON.stringify(dailyTargets));
+      } catch {
+        dailyTargets = previousTargets;
+        setMessage(targetMessage, "浏览器未能保存目标，请检查存储空间或权限后重试。", "error");
+        return;
+      }
       targetIntakeInput.value = dailyTargets.intake === "" ? "" : dailyTargets.intake;
       targetProteinInput.value = dailyTargets.protein === "" ? "" : dailyTargets.protein;
       heightInput.value = dailyTargets.height === "" ? "" : dailyTargets.height;
@@ -2064,7 +2071,7 @@
         </div>
         <div class="summary-card">
           <span class="summary-label">今天饮水</span>
-          <strong class="summary-value">${todayRecord ? valueOrEmpty(todayRecord.water || "", "ml") : "未填写"}</strong>
+          <strong class="summary-value">${todayRecord ? valueOrEmpty(todayRecord.water ?? "", "ml") : "未填写"}</strong>
           <span class="summary-note">${targetNoteForToday(todayRecord, "water", "饮水")}</span>
         </div>
         <div class="summary-card">
@@ -2142,10 +2149,9 @@
 
     function weeklyTargetRate(records, target, targetMetricName, targetUnit) {
       if (!target || !Number(target)) return { text: "--", note: "未设目标" };
-      const last7Days = recordsInLastCalendarDays(records, 7);
-      const withData = last7Days.filter(r => r[targetMetricName === "热量" ? "intake" : targetMetricName === "蛋白" ? "protein" : "water"] !== "");
-      if (!withData.length) return { text: "--", note: "暂无数据" };
       const dataKey = targetMetricName === "热量" ? "intake" : targetMetricName === "蛋白" ? "protein" : "water";
+      const withData = records.filter((record) => record[dataKey] !== "");
+      if (!withData.length) return { text: "--", note: "暂无数据" };
       const hit = withData.filter(r => {
         const s = metricTargetStatus(targetMetricName, r[dataKey], target, targetUnit);
         return s && s.level === "good";
@@ -2407,7 +2413,8 @@
         const end = new Date(`${point.date}T00:00:00`);
         const start = new Date(end);
         start.setDate(start.getDate() - (days - 1));
-        const group = allValues.filter((item) => item.date >= toDateString(start) && item.date <= point.date);
+        const startString = toDateString(start);
+        const group = allValues.filter((item) => item.date >= startString && item.date <= point.date);
         const average = group.reduce((sum, item) => sum + Number(item.value), 0) / group.length;
         return { index: point.index, date: point.date, value: Math.round(average) };
       });
@@ -2582,6 +2589,18 @@
       calendar.classList.remove("calendar-slide");
       void calendar.offsetWidth;
       calendar.classList.add("calendar-slide");
+    }
+
+    function shiftMonth(delta) {
+      calendarMonth += delta;
+      if (calendarMonth < 0) {
+        calendarMonth = 11;
+        calendarYear -= 1;
+      }
+      if (calendarMonth > 11) {
+        calendarMonth = 0;
+        calendarYear += 1;
+      }
     }
 
     function targetStatusForRecord(record) {
@@ -2959,12 +2978,12 @@
         return;
       }
       const header = "日期,摄入(kcal),体重(kg),蛋白质(g),饮水(ml)";
-      const rows = sorted.map(r => [
-        r.date,
-        r.intake || "",
-        r.weight || "",
-        r.protein || "",
-        r.water || ""
+      const rows = sorted.map((record) => [
+        record.date,
+        (record.intake === "" || record.intake === undefined) ? "" : record.intake,
+        (record.weight === "" || record.weight === undefined) ? "" : record.weight,
+        (record.protein === "" || record.protein === undefined) ? "" : record.protein,
+        (record.water === "" || record.water === undefined) ? "" : record.water
       ].join(","));
       const csv = "﻿" + header + "\n" + rows.join("\n");
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -3037,20 +3056,12 @@
     });
 
     document.querySelector("#prevMonthBtn").addEventListener("click", () => {
-      calendarMonth -= 1;
-      if (calendarMonth < 0) {
-        calendarMonth = 11;
-        calendarYear -= 1;
-      }
+      shiftMonth(-1);
       renderCalendar();
     });
 
     document.querySelector("#nextMonthBtn").addEventListener("click", () => {
-      calendarMonth += 1;
-      if (calendarMonth > 11) {
-        calendarMonth = 0;
-        calendarYear += 1;
-      }
+      shiftMonth(1);
       renderCalendar();
     });
 
@@ -3067,12 +3078,10 @@
       if (isInput) return;
 
       if (e.key === "ArrowLeft") {
-        calendarMonth -= 1;
-        if (calendarMonth < 0) { calendarMonth = 11; calendarYear -= 1; }
+        shiftMonth(-1);
         renderCalendar();
       } else if (e.key === "ArrowRight") {
-        calendarMonth += 1;
-        if (calendarMonth > 11) { calendarMonth = 0; calendarYear += 1; }
+        shiftMonth(1);
         renderCalendar();
       } else if (e.key === "t" || e.key === "T") {
         calendarYear = Number(today.slice(0, 4));
@@ -3105,13 +3114,7 @@
     calendar.addEventListener("touchend", (e) => {
       const diff = e.changedTouches[0].screenX - touchStartX;
       if (Math.abs(diff) < 50) return;
-      if (diff > 0) {
-        calendarMonth -= 1;
-        if (calendarMonth < 0) { calendarMonth = 11; calendarYear -= 1; }
-      } else {
-        calendarMonth += 1;
-        if (calendarMonth > 11) { calendarMonth = 0; calendarYear += 1; }
-      }
+      shiftMonth(diff > 0 ? -1 : 1);
       renderCalendar();
     }, { passive: true });
 
