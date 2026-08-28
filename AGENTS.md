@@ -9,20 +9,26 @@ NutriFlow 是零依赖的中文单页饮食、体重与营养趋势记录工具�
 - `NutriFlow.html`：无种子数据的发布入口；修改生产功能时优先以它为准。
 - `index.html`：开发/演示入口，保留与发布版本一致的生产逻辑，仅允许保留种子数据和 PWA 接入等有意差异。
 - `test-reliability.js`：Node 内置 `assert` 和 VM 的回归测试，覆盖两份 HTML 的共享逻辑。
+- `test-parity.js`：自动检查两份 HTML 的 CSS、页面结构和核心 JS 是否漂移（允许 index 的种子/PWA 接入差异）。
+- `check-html-syntax.js`：用 `vm.Script` 检查两个 HTML 内联脚本语法。
+- `check-repo-structure.js`：检查发行文件、存储键和两个入口的预期差异。
 - `manifest.json`、`sw.js`：仅服务于 `index.html` 的 PWA 缓存入口。
 - `open NutriFlow.cmd`、`打开每日饮食记录.cmd`：分别用系统浏览器打开两个 HTML 入口。
 
-记录和目标保存在浏览器 `localStorage`；不得更改正常数据键名或格式，尤其是 `dailyDietRecordsV1` 与 `dailyDietTargetsV1`。记录写入、覆盖、导入和删除必须维持事务性：持久化失败不得把未保存状态渲染为已保存。导入批次内的重复日期必须拒绝整批；与既有记录同日期的覆盖仍是允许行为。处理损坏记录时保留原始备份策略，避免覆盖可恢复内容。
+记录和目标保存在浏览器 `localStorage`；不得更改正常数据键名或格式，尤其是 `dailyDietRecordsV1` 与 `dailyDietTargetsV1`。记录写入、覆盖、导入和删除必须维持事务性：持久化失败不得把未保存状态渲染为已保存。导入批次内的重复日期必须拒绝整批；与既有记录同日期的覆盖仍是允许行为。处理损坏记录时保留原始备份策略，避免覆盖可恢复内容；出现第二次不同的损坏原始值时，会归档到 `dailyDietRecordsV1CorruptBackupV2` 的时间戳列表，而不是永久阻止后续保存。完整备份恢复会先写 `dailyDietRestoreJournalV1` 日志；任一持久化步骤失败时回滚已写入的 key，若回滚本身也失败则保留日志供下次启动恢复。存在未完成日志时，应用会进入恢复待处理状态，阻止新的持久化写入，直到日志恢复成功或用户处理该状态。
 
 ## 开发与验证
 
-没有 `package.json`、构建、Lint 或格式化工具链。可用命令仅包括：
+没有 `package.json`、构建、Lint 或格式化工具链。可用命令包括：
 
 - `node test-reliability.js`：运行共享逻辑的回归测试。
+- `node test-parity.js`：运行双 HTML parity 检查。
+- `node check-html-syntax.js`：检查两个 HTML 的内联 JS 语法。
+- `node check-repo-structure.js`：检查仓库结构约束。
 - `open NutriFlow.cmd`：打开可分发的单文件入口。
 - `打开每日饮食记录.cmd`：打开含开发种子数据的 `index.html`。
 
-修改 JS 或数据流后，至少运行 `node test-reliability.js`，检查两个 HTML 的内联脚本语法，并用浏览器验证相关流程。涉及日期、导入、图表或持久化时，同时检查空数据、跨月/跨年、写入失败，以及两个入口的行为一致性。修改完成后运行 `git diff --check`、检查 `git status --short` 和限定范围的 diff；未运行的检查必须如实说明。不要把 `file://` 与静态 HTTP/PWA 的结果混为一谈。
+修改 JS 或数据流后，至少运行 `node test-reliability.js`、`node test-parity.js`、`node check-html-syntax.js`，并用浏览器验证相关流程。涉及日期、导入、图表或持久化时，同时检查空数据、跨月/跨年、写入失败，以及两个入口的行为一致性。修改完成后运行 `git diff --check`、检查 `git status --short` 和限定范围的 diff；未运行的检查必须如实说明。不要把 `file://` 与静态 HTTP/PWA 的结果混为一谈。
 
 ## 代码风格与修改边界
 

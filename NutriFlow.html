@@ -113,6 +113,18 @@
       padding: 34px 0 48px;
     }
 
+    .storage-warning {
+      margin: 0 0 16px;
+      padding: 12px 16px;
+      border: 1px solid var(--red);
+      border-radius: 16px;
+      color: var(--red);
+      background: var(--btn-secondary-bg);
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.5;
+    }
+
     .topbar {
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(360px, 400px);
@@ -981,7 +993,7 @@
 
     .import-preview-row {
       display: grid;
-      grid-template-columns: minmax(104px, 1fr) minmax(88px, 1fr) minmax(78px, auto);
+      grid-template-columns: minmax(96px, 1.2fr) repeat(4, minmax(76px, 1fr)) auto;
       align-items: center;
       gap: 8px;
       padding: 9px 10px;
@@ -1897,6 +1909,7 @@
 </head>
 <body>
   <main class="app">
+    <div class="storage-warning" id="storageWarning" role="alert" hidden></div>
     <header class="topbar">
       <div class="hero-copy">
         <h1>每日饮食记录</h1>
@@ -1927,7 +1940,7 @@
       <div class="stack">
         <section class="panel">
           <div class="panel-inner">
-            <h2>填写今天</h2>
+            <h2 id="formTitle">填写今天</h2>
             <form class="form" id="recordForm">
               <label>
                 日期
@@ -2026,7 +2039,7 @@
       <section class="panel">
         <div class="panel-inner">
           <h2>批量导入</h2>
-          <p class="import-help">从表格复制后粘贴到这里。先写日期，再写摄入即可；也支持 2/12：650、2月12日 650大卡、2026.2.12，650 这类写法。体重和蛋白质可以空着。</p>
+          <p class="import-help">从表格复制后粘贴到这里。先写日期，再写摄入即可；也支持 2/12：650、2月12日 650大卡、2026.2.12，650 这类写法。体重、蛋白质和饮水可以空着。</p>
           <textarea id="importText" placeholder="2/12：650&#10;2月13日 1000大卡&#10;2026.2.14，600"></textarea>
           <div class="button-row" style="margin-top: 12px;">
             <button class="btn" type="button" id="importBtn">先预览</button>
@@ -2036,6 +2049,7 @@
           <div class="button-row" style="margin-top: 8px;">
             <button class="btn secondary" type="button" id="exportBtn">导出 CSV</button>
             <button class="btn secondary" type="button" id="exportJsonBtn" title="导出与浏览器存储一致的 JSON 备份，可用“导入文件”恢复">导出 JSON</button>
+            <button class="btn secondary" type="button" id="exportFullJsonBtn" title="导出包含记录、目标和主题的完整备份，可用“导入文件”恢复">导出完整备份</button>
             <label class="btn secondary" style="cursor: pointer; margin: 0;">
               导入文件
               <input type="file" id="fileImportInput" accept=".csv,.json" style="display: none;">
@@ -2065,7 +2079,7 @@
   </main>
 
   <button class="theme-toggle" type="button" id="themeToggle" aria-label="切换深色模式"> </button>
-  <div class="toast-container" id="toastContainer"></div>
+  <div class="toast-container" id="toastContainer" aria-live="polite"></div>
 
   <div class="diet-pet" aria-live="polite">
     <div class="pet-speech" id="petSpeech"></div>
@@ -2106,7 +2120,14 @@
   <script>
     const STORAGE_KEY = "dailyDietRecordsV1";
     const CORRUPT_RECORDS_BACKUP_KEY = "dailyDietRecordsV1CorruptBackupV1";
+    const CORRUPT_RECORDS_BACKUP_V2_KEY = "dailyDietRecordsV1CorruptBackupV2";
+    const RESTORE_JOURNAL_KEY = "dailyDietRestoreJournalV1";
     const TARGET_STORAGE_KEY = "dailyDietTargetsV1";
+    const METRIC_POLICIES = {
+      "热量": { type: "minimum" },
+      "蛋白": { type: "minimum" },
+      "饮水": { type: "minimum" }
+    };
     const PET_LINES = [
       "体重今天像电梯，别急，先看一周趋势。",
       "蛋白质到位，身体：这班我上。",
@@ -2134,7 +2155,9 @@
     const intakeInput = document.querySelector("#intakeInput");
     const weightInput = document.querySelector("#weightInput");
     const proteinInput = document.querySelector("#proteinInput");
+    const formTitle = document.querySelector("#formTitle");
     const formMessage = document.querySelector("#formMessage");
+    const storageWarning = document.querySelector("#storageWarning");
     const importText = document.querySelector("#importText");
     const importMessage = document.querySelector("#importMessage");
     const importPreview = document.querySelector("#importPreview");
@@ -2166,6 +2189,7 @@
     let corruptRecordsRaw = "";
     let corruptRecordsStatus = "";
     let storageUnavailable = false;
+    let restoreRecoveryPending = false;
     let lastPetLineIndex = -1;
     let petSpeechTimer = null;
     let dailyTargets = { intake: "", protein: "", height: "", water: "" };
@@ -2202,6 +2226,140 @@
       return { date: record.date, intake, weight, protein, water };
     }
 
+    function normalizeTargetsObject(raw) {
+      const source = raw && typeof raw === "object" ? raw : {};
+      const readTarget = (value) => Number.isFinite(Number(value)) && Number(value) > 0 ? Number(value) : "";
+      return {
+        intake: readTarget(source.intake),
+        protein: readTarget(source.protein),
+        height: readTarget(source.height),
+        water: readTarget(source.water)
+      };
+    }
+
+    function syncTargetInputs() {
+      targetIntakeInput.value = dailyTargets.intake === "" ? "" : dailyTargets.intake;
+      targetProteinInput.value = dailyTargets.protein === "" ? "" : dailyTargets.protein;
+      heightInput.value = dailyTargets.height === "" ? "" : dailyTargets.height;
+      targetWaterInput.value = dailyTargets.water === "" ? "" : dailyTargets.water;
+    }
+
+    function writeTargets(targets) {
+      return storageSet(TARGET_STORAGE_KEY, JSON.stringify(targets)) === true;
+    }
+
+    function writeStorageDirect(key, value) {
+      try {
+        if (value === null) localStorage.removeItem(key);
+        else localStorage.setItem(key, value);
+        return true;
+      } catch (error) {
+        return false;
+      }
+    }
+
+    function restoreFullBackup(backup) {
+      if (!backup || !Array.isArray(backup.records)) return false;
+      if (backup.schemaVersion !== undefined && backup.schemaVersion !== 1) return false;
+      const recordsSnapshot = new Map(recordsByDate);
+      const targetsSnapshot = { ...dailyTargets };
+      const themeSnapshot = document.documentElement.getAttribute("data-theme") || "light";
+      const corruptRawSnapshot = corruptRecordsRaw;
+      const corruptStatusSnapshot = corruptRecordsStatus;
+      const oldRecords = storageGet(STORAGE_KEY);
+      const oldTargets = storageGet(TARGET_STORAGE_KEY);
+      const oldTheme = storageGet(THEME_KEY);
+
+      const journal = {
+        schemaVersion: 1,
+        savedAt: new Date().toISOString(),
+        records: oldRecords,
+        targets: oldTargets,
+        theme: oldTheme
+      };
+      if (storageSet(RESTORE_JOURNAL_KEY, JSON.stringify(journal)) !== true) return false;
+
+      recordsByDate.clear();
+      backup.records.forEach((record) => recordsByDate.set(record.date, record));
+      dailyTargets = normalizeTargetsObject(backup.targets);
+      const restoreTheme = backup.preferences && backup.preferences.theme === "dark" ? "dark" : "light";
+      applyTheme(restoreTheme);
+      syncTargetInputs();
+
+      const recordsSaved = saveRecords();
+      const targetsSaved = writeTargets(dailyTargets);
+      const themeSaved = storageSet(THEME_KEY, restoreTheme) === true;
+      if (recordsSaved && targetsSaved && themeSaved) {
+        try { localStorage.removeItem(RESTORE_JOURNAL_KEY); } catch (error) {}
+        return true;
+      }
+
+      recordsByDate.clear();
+      recordsSnapshot.forEach((record, date) => recordsByDate.set(date, record));
+      dailyTargets = targetsSnapshot;
+      applyTheme(themeSnapshot);
+      syncTargetInputs();
+      corruptRecordsRaw = corruptRawSnapshot;
+      corruptRecordsStatus = corruptStatusSnapshot;
+      let rollbackOk = true;
+      if (recordsSaved) rollbackOk = writeStorageDirect(STORAGE_KEY, oldRecords) && rollbackOk;
+      if (targetsSaved) rollbackOk = writeStorageDirect(TARGET_STORAGE_KEY, oldTargets) && rollbackOk;
+      if (themeSaved) rollbackOk = writeStorageDirect(THEME_KEY, oldTheme) && rollbackOk;
+      if (rollbackOk) {
+        try { localStorage.removeItem(RESTORE_JOURNAL_KEY); } catch (error) {}
+      }
+      return false;
+    }
+
+    function isValidRestoreJournal(journal) {
+      if (!journal || typeof journal !== "object") return false;
+      if (journal.schemaVersion !== 1) return false;
+      if (!Object.prototype.hasOwnProperty.call(journal, "records")) return false;
+      if (!Object.prototype.hasOwnProperty.call(journal, "targets")) return false;
+      if (!Object.prototype.hasOwnProperty.call(journal, "theme")) return false;
+      return [journal.records, journal.targets, journal.theme].every((value) => value === null || typeof value === "string");
+    }
+
+    function recoverRestoreJournal() {
+      const raw = storageGet(RESTORE_JOURNAL_KEY);
+      if (!raw) {
+        restoreRecoveryPending = false;
+        return true;
+      }
+      let journal;
+      try {
+        journal = JSON.parse(raw);
+      } catch (error) {
+        restoreRecoveryPending = true;
+        return false;
+      }
+      if (!isValidRestoreJournal(journal)) {
+        restoreRecoveryPending = true;
+        return false;
+      }
+      const recordsOk = writeStorageDirect(STORAGE_KEY, journal.records);
+      const targetsOk = writeStorageDirect(TARGET_STORAGE_KEY, journal.targets);
+      const themeOk = writeStorageDirect(THEME_KEY, journal.theme);
+      if (recordsOk && targetsOk && themeOk) {
+        try { localStorage.removeItem(RESTORE_JOURNAL_KEY); } catch (error) {}
+        restoreRecoveryPending = false;
+        loadRecords();
+        loadTargets();
+        applyTheme(storageGet(THEME_KEY) === "dark" ? "dark" : "light");
+        return true;
+      }
+      restoreRecoveryPending = true;
+      return false;
+    }
+
+    function ensureRestoreRecovery() {
+      if (!restoreRecoveryPending) return true;
+      if (recoverRestoreJournal()) return true;
+      showToast("存在未完成的恢复日志，已暂停新的保存操作。请勿清除站点数据，刷新后会自动重试恢复。", "error");
+      renderStorageStatus();
+      return false;
+    }
+
     function setMessage(element, text, type) {
       element.textContent = text;
       element.className = `message ${type || ""}`;
@@ -2214,6 +2372,7 @@
     }
 
     function storageSet(key, value) {
+      if (restoreRecoveryPending && !ensureRestoreRecovery()) return false;
       if (storageUnavailable) return "memory";
       try { localStorage.setItem(key, value); return true; }
       catch (error) {
@@ -2239,6 +2398,7 @@
       const container = document.querySelector("#toastContainer");
       const toast = document.createElement("div");
       toast.className = `toast ${type || ""}`;
+      toast.setAttribute("role", type === "error" ? "alert" : "status");
       toast.textContent = text;
       container.appendChild(toast);
       setTimeout(() => {
@@ -2287,14 +2447,30 @@
       }
     }
 
+    function storeCorruptRecordsBackup() {
+      if (!corruptRecordsRaw) return true;
+      const previousBackup = storageGet(CORRUPT_RECORDS_BACKUP_KEY);
+      if (previousBackup === null || previousBackup === corruptRecordsRaw) {
+        return storageSet(CORRUPT_RECORDS_BACKUP_KEY, corruptRecordsRaw) === true;
+      }
+
+      let archive = [];
+      try {
+        const parsed = JSON.parse(storageGet(CORRUPT_RECORDS_BACKUP_V2_KEY) || "[]");
+        if (Array.isArray(parsed)) archive = parsed;
+      } catch (error) {
+        archive = [];
+      }
+      archive.push({ savedAt: new Date().toISOString(), raw: corruptRecordsRaw });
+      if (archive.length > 10) archive = archive.slice(-10);
+      return storageSet(CORRUPT_RECORDS_BACKUP_V2_KEY, JSON.stringify(archive)) === true;
+    }
+
     function saveRecords() {
       try {
-        if (corruptRecordsRaw) {
-          const previousBackup = localStorage.getItem(CORRUPT_RECORDS_BACKUP_KEY);
-          if (previousBackup !== null && previousBackup !== corruptRecordsRaw) return false;
-          localStorage.setItem(CORRUPT_RECORDS_BACKUP_KEY, corruptRecordsRaw);
-        }
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(getSortedRecords()));
+        if (corruptRecordsRaw && !storeCorruptRecordsBackup()) return false;
+        const saved = storageSet(STORAGE_KEY, JSON.stringify(getSortedRecords()));
+        if (saved !== true) return false;
         corruptRecordsRaw = "";
         corruptRecordsStatus = "";
         return true;
@@ -2312,20 +2488,11 @@
     function loadTargets() {
       try {
         const saved = JSON.parse(storageGet(TARGET_STORAGE_KEY) || "{}");
-        dailyTargets = {
-          intake: Number.isFinite(Number(saved.intake)) && Number(saved.intake) > 0 ? Number(saved.intake) : "",
-          protein: Number.isFinite(Number(saved.protein)) && Number(saved.protein) > 0 ? Number(saved.protein) : "",
-          height: Number.isFinite(Number(saved.height)) && Number(saved.height) > 0 ? Number(saved.height) : "",
-          water: Number.isFinite(Number(saved.water)) && Number(saved.water) > 0 ? Number(saved.water) : ""
-        };
+        dailyTargets = normalizeTargetsObject(saved);
       } catch (error) {
         dailyTargets = { intake: "", protein: "", height: "", water: "" };
       }
-
-      targetIntakeInput.value = dailyTargets.intake === "" ? "" : dailyTargets.intake;
-      targetProteinInput.value = dailyTargets.protein === "" ? "" : dailyTargets.protein;
-      heightInput.value = dailyTargets.height === "" ? "" : dailyTargets.height;
-      targetWaterInput.value = dailyTargets.water === "" ? "" : dailyTargets.water;
+      syncTargetInputs();
     }
 
     function saveTargets() {
@@ -2346,17 +2513,14 @@
         height: height === 0 ? "" : height,
         water: water === 0 ? "" : water
       };
-      try {
-        localStorage.setItem(TARGET_STORAGE_KEY, JSON.stringify(dailyTargets));
-      } catch {
+      if (!writeTargets(dailyTargets)) {
         dailyTargets = previousTargets;
+        syncTargetInputs();
         setMessage(targetMessage, "浏览器未能保存目标，请检查存储空间或权限后重试。", "error");
+        render();
         return;
       }
-      targetIntakeInput.value = dailyTargets.intake === "" ? "" : dailyTargets.intake;
-      targetProteinInput.value = dailyTargets.protein === "" ? "" : dailyTargets.protein;
-      heightInput.value = dailyTargets.height === "" ? "" : dailyTargets.height;
-      targetWaterInput.value = dailyTargets.water === "" ? "" : dailyTargets.water;
+      syncTargetInputs();
       setMessage(targetMessage, "目标已保存，日历颜色已更新。", "success");
       render();
     }
@@ -2457,9 +2621,27 @@
       }, next - new Date());
     }
 
+    function updateFormTitle() {
+      formTitle.textContent = selectedDate === today ? "今天记录" : `编辑 ${formatDateText(selectedDate)}`;
+    }
+
+    function renderStorageStatus() {
+      if (restoreRecoveryPending) {
+        storageWarning.hidden = false;
+        storageWarning.textContent = "检测到未完成的恢复日志。为保护旧数据，已暂停新的保存操作；请勿清除站点数据，刷新后会自动重试恢复。";
+      } else if (storageUnavailable) {
+        storageWarning.hidden = false;
+        storageWarning.textContent = "当前浏览器无法保存到本地存储：页面只能临时使用，关闭后数据可能丢失。";
+      } else {
+        storageWarning.hidden = true;
+      }
+    }
+
     function render() {
       const sorted = getSortedRecords();
       const habitReview = sorted.length ? recordHabitReview(sorted) : "";
+      updateFormTitle();
+      renderStorageStatus();
       renderTodaySummary(sorted, habitReview);
       renderStats(sorted, habitReview);
       renderCharts(sorted);
@@ -2576,8 +2758,8 @@
       const avgIntake7 = averageFilledValue(last7, "intake");
       const rate = weeklyTargetRate(last7, dailyTargets.intake, "热量", "kcal");
       const proteinRate = weeklyTargetRate(last7, dailyTargets.protein, "蛋白", "g");
-      cards.push(statCard("本周达标", rate.text, "", rate.note));
-      cards.push(statCard("本周蛋白达标", proteinRate.text, "", proteinRate.note));
+      cards.push(statCard("近 7 天达标", rate.text, "", rate.note));
+      cards.push(statCard("近 7 天蛋白达标", proteinRate.text, "", proteinRate.note));
       cards.push(statCard("平均摄入", avgIntake7 === null ? "--" : roundValue(avgIntake7), avgIntake7 === null ? "" : "kcal/天", "近 7 天"));
 
       stats.innerHTML = cards.join("");
@@ -2602,7 +2784,7 @@
         const s = metricTargetStatus(targetMetricName, r[dataKey], target, targetUnit);
         return s && s.level === "good";
       }).length;
-      return { text: `${hit}/${withData.length}`, note: "本周达标" };
+      return { text: `${hit}/${withData.length}`, note: "近 7 天" };
     }
 
     function averageWeeklyWeightChange(records) {
@@ -2721,9 +2903,9 @@
             <div class="chart-head">
               <h3 class="chart-title"><span class="dot" style="background:var(--blue)"></span>摄入总览</h3>
               <div class="chart-range-btns">
-                <button class="range-btn${activeRange === 7 ? " active" : ""}" type="button" data-range="7">7天</button>
-                <button class="range-btn${activeRange === 30 ? " active" : ""}" type="button" data-range="30">30天</button>
-                <button class="range-btn${activeRange === 0 ? " active" : ""}" type="button" data-range="0">全部</button>
+                <button class="range-btn${activeRange === 7 ? " active" : ""}" type="button" data-range="7" aria-pressed="${activeRange === 7}">7天</button>
+                <button class="range-btn${activeRange === 30 ? " active" : ""}" type="button" data-range="30" aria-pressed="${activeRange === 30}">30天</button>
+                <button class="range-btn${activeRange === 0 ? " active" : ""}" type="button" data-range="0" aria-pressed="${activeRange === 0}">全部</button>
               </div>
             </div>
             <div class="empty-state">该范围暂无记录</div>
@@ -2752,13 +2934,13 @@
           <div class="chart-head">
             <h3 class="chart-title"><span class="dot" style="background:var(--blue)"></span>摄入总览</h3>
             <div class="chart-range-btns">
-              <button class="range-btn${chartView === "line" ? " active" : ""}" type="button" data-view="line">折线</button>
-              <button class="range-btn${chartView === "bar" ? " active" : ""}" type="button" data-view="bar">周均</button>
+              <button class="range-btn${chartView === "line" ? " active" : ""}" type="button" data-view="line" aria-pressed="${chartView === "line"}">折线</button>
+              <button class="range-btn${chartView === "bar" ? " active" : ""}" type="button" data-view="bar" aria-pressed="${chartView === "bar"}">周均</button>
             </div>
             <div class="chart-range-btns">
-              <button class="range-btn${activeRange === 7 ? " active" : ""}" type="button" data-range="7">7天</button>
-              <button class="range-btn${activeRange === 30 ? " active" : ""}" type="button" data-range="30">30天</button>
-              <button class="range-btn${activeRange === 0 ? " active" : ""}" type="button" data-range="0">全部</button>
+              <button class="range-btn${activeRange === 7 ? " active" : ""}" type="button" data-range="7" aria-pressed="${activeRange === 7}">7天</button>
+              <button class="range-btn${activeRange === 30 ? " active" : ""}" type="button" data-range="30" aria-pressed="${activeRange === 30}">30天</button>
+              <button class="range-btn${activeRange === 0 ? " active" : ""}" type="button" data-range="0" aria-pressed="${activeRange === 0}">全部</button>
             </div>
             <span class="chart-note">${rangeLabel}</span>
           </div>
@@ -2787,9 +2969,9 @@
           <div class="chart-head">
             <h3 class="chart-title"><span class="dot" style="background:${colorVar}"></span>${label}</h3>
             <div class="chart-range-btns">
-              <button class="range-btn${activeRange === 7 ? " active" : ""}" type="button" data-range="7">7天</button>
-              <button class="range-btn${activeRange === 30 ? " active" : ""}" type="button" data-range="30">30天</button>
-              <button class="range-btn${activeRange === 0 ? " active" : ""}" type="button" data-range="0">全部</button>
+              <button class="range-btn${activeRange === 7 ? " active" : ""}" type="button" data-range="7" aria-pressed="${activeRange === 7}">7天</button>
+              <button class="range-btn${activeRange === 30 ? " active" : ""}" type="button" data-range="30" aria-pressed="${activeRange === 30}">30天</button>
+              <button class="range-btn${activeRange === 0 ? " active" : ""}" type="button" data-range="0" aria-pressed="${activeRange === 0}">全部</button>
             </div>
             <span class="chart-note">${values.length} 个点</span>
           </div>
@@ -3096,6 +3278,7 @@
 
       const keyMap = { "热量": "intake", "蛋白": "protein", "饮水": "water" };
       const key = keyMap[name] || "intake";
+      const policy = METRIC_POLICIES[name] || { type: "minimum" };
       const labels = { good: "达标", warn: "稍低", low: "偏低", none: "未填" };
       if (value === "" || !Number.isFinite(Number(value))) {
         return {
@@ -3107,6 +3290,7 @@
           unit,
           name,
           key,
+          policy: policy.type,
           text: `${name}未填，目标 ${roundValue(Number(target))}${unit}`
         };
       }
@@ -3123,6 +3307,7 @@
         unit,
         name,
         key,
+        policy: policy.type,
         text: `${name}${labels[level]} ${roundValue(actual)}/${roundValue(Number(target))}${unit}`
       };
     }
@@ -3130,9 +3315,11 @@
     function renderTargetProgress() {
       const intake = readNumber(intakeInput.value, false);
       const protein = readNumber(proteinInput.value, false);
+      const water = readNumber(waterInput.value, false);
       const checks = targetChecksForRecord({
         intake: intake === null ? "" : intake,
-        protein: protein === null ? "" : protein
+        protein: protein === null ? "" : protein,
+        water: water === null ? "" : water
       });
 
       if (!checks.length) {
@@ -3232,6 +3419,8 @@
 
     function readImportNumbers(text) {
       return String(text ?? "")
+        .replace(/\b\d{1,2}:\d{2}(?::\d{2})?\b/g, " ")
+        .replace(/\d+(?:\.\d+)?%/g, " ")
         .replace(/[：:=]/g, " ")
         .replace(/[，,;；|\t]/g, " ")
         .replace(/(千卡|大卡|卡路里|kcal|cal|公斤|千克|kg|克|g)/gi, " ")
@@ -3240,17 +3429,31 @@
 
     function parseImportLine(line) {
       const dateInfo = findDateInImportLine(line);
-      if (!dateInfo.date) return { date: "", intake: null, weight: "", protein: "" };
+      if (!dateInfo.date) return { date: "", intake: null, weight: "", protein: "", water: "" };
 
       const afterDate = line.slice(dateInfo.index + dateInfo.raw.length);
       const beforeDate = line.slice(0, dateInfo.index);
       const numbers = readImportNumbers(afterDate);
       const fallbackNumbers = numbers.length ? numbers : readImportNumbers(beforeDate);
+      const labeledIntake = afterDate.match(/(\d+(?:\.\d+)?)\s*(?:大卡|千卡|卡路里|kcal|cal)/i);
+      if (labeledIntake) {
+        const afterIntake = afterDate.slice(labeledIntake.index + labeledIntake[0].length);
+        const labeledNumbers = readImportNumbers(afterIntake);
+        return {
+          date: dateInfo.date,
+          intake: readNumber(labeledIntake[1], true),
+          weight: readNumber(labeledNumbers[0] ?? "", false),
+          protein: readNumber(labeledNumbers[1] ?? "", false),
+          water: readNumber(labeledNumbers[2] ?? "", false)
+        };
+      }
+
       const intake = readNumber(fallbackNumbers[0] ?? "", true);
       const weight = readNumber(fallbackNumbers[1] ?? "", false);
       const protein = readNumber(fallbackNumbers[2] ?? "", false);
+      const water = readNumber(fallbackNumbers[3] ?? "", false);
 
-      return { date: dateInfo.date, intake, weight, protein };
+      return { date: dateInfo.date, intake, weight, protein, water };
     }
 
     function findDuplicateDates(records) {
@@ -3269,16 +3472,17 @@
         if (isImportHeaderLine(line)) return;
 
         const result = parseImportLine(line);
-        const { date, intake, weight, protein } = result;
+        const { date, intake, weight, protein, water } = result;
         const rowNumber = index + 1;
 
         if (!date) errors.push(`第 ${rowNumber} 行：日期不正确`);
         if (intake === null) errors.push(`第 ${rowNumber} 行：摄入必须填写数字`);
         if (weight === null) errors.push(`第 ${rowNumber} 行：体重需要是数字或留空`);
         if (protein === null) errors.push(`第 ${rowNumber} 行：蛋白质需要是数字或留空`);
+        if (water === null) errors.push(`第 ${rowNumber} 行：饮水需要是数字或留空`);
 
-        if (date && intake !== null && weight !== null && protein !== null) {
-          records.push({ date, intake, weight, protein });
+        if (date && intake !== null && weight !== null && protein !== null && water !== null) {
+          records.push({ date, intake, weight, protein, water });
         }
       });
 
@@ -3292,10 +3496,16 @@
       pendingImportRecords = records;
       const rows = records.map((record) => {
         const status = recordsByDate.has(record.date) ? "会覆盖" : "新增";
+        const weightText = record.weight === "" || record.weight === undefined ? "未填" : `${record.weight} kg`;
+        const proteinText = record.protein === "" || record.protein === undefined ? "未填" : `${record.protein} g`;
+        const waterText = record.water === "" || record.water === undefined ? "未填" : `${record.water} ml`;
         return `
           <div class="import-preview-row">
             <div>日期<strong>${record.date}</strong></div>
             <div>摄入<strong>${record.intake} kcal</strong></div>
+            <div>体重<strong>${weightText}</strong></div>
+            <div>蛋白质<strong>${proteinText}</strong></div>
+            <div>饮水<strong>${waterText}</strong></div>
             <div class="import-preview-badge">${status}</div>
           </div>
         `;
@@ -3450,11 +3660,19 @@
         const content = ev.target.result;
         let records = [];
         let invalidCount = 0;
+        let fullBackup = null;
         if (file.name.endsWith(".json")) {
           try {
             const data = JSON.parse(content);
             if (Array.isArray(data)) {
               data.forEach((entry) => {
+                const record = normalizeRecord(entry);
+                if (record) records.push(record);
+                else invalidCount += 1;
+              });
+            } else if (data && Array.isArray(data.records)) {
+              fullBackup = data;
+              data.records.forEach((entry) => {
                 const record = normalizeRecord(entry);
                 if (record) records.push(record);
                 else invalidCount += 1;
@@ -3482,8 +3700,32 @@
           e.target.value = "";
           return;
         }
+        if (fullBackup && invalidCount > 0) {
+          showToast(`完整备份中包含 ${invalidCount} 条无效记录，已取消导入。`, "error");
+          e.target.value = "";
+          return;
+        }
         const duplicates = findDuplicateDates(records);
         if (duplicates.length) { showToast(`导入中日期重复：${duplicates.join("、")}`, "error"); e.target.value = ""; return; }
+        if (fullBackup && fullBackup.schemaVersion !== undefined && fullBackup.schemaVersion !== 1) {
+          showToast("不支持的备份版本，已取消导入。", "error");
+          e.target.value = "";
+          return;
+        }
+        if (fullBackup) {
+          if (!restoreFullBackup({ ...fullBackup, records })) {
+            showToast(saveRecordsMessage(), "error");
+            e.target.value = "";
+            return;
+          }
+          selectedDate = records[records.length - 1].date;
+          calendarYear = Number(selectedDate.slice(0, 4));
+          calendarMonth = Number(selectedDate.slice(5, 7)) - 1;
+          render();
+          showToast(`已恢复完整备份：${records.length} 条记录、目标和主题。`, "success");
+          e.target.value = "";
+          return;
+        }
         if (!applyRecordMutationAndSave(() => {
           records.forEach(r => recordsByDate.set(r.date, r));
           selectedDate = records[records.length - 1].date;
@@ -3600,7 +3842,7 @@
       }
     });
     saveTargetsBtn.addEventListener("click", saveTargets);
-    [intakeInput, proteinInput].forEach((input) => {
+    [intakeInput, proteinInput, waterInput].forEach((input) => {
       input.addEventListener("input", renderTargetProgress);
     });
 
@@ -3653,18 +3895,45 @@
       showToast(`已导出 ${sorted.length} 条 JSON 备份，可通过“导入文件”恢复。`, "success");
     });
 
+    document.querySelector("#exportFullJsonBtn").addEventListener("click", () => {
+      const sorted = getSortedRecords();
+      if (!sorted.length) {
+        showToast("没有数据可以备份。", "error");
+        return;
+      }
+      const backup = {
+        schemaVersion: 1,
+        app: "NutriFlow",
+        exportedAt: new Date().toISOString(),
+        records: sorted,
+        targets: { ...dailyTargets },
+        preferences: { theme: document.documentElement.getAttribute("data-theme") || "light" }
+      };
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `每日饮食完整备份_${today}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      showToast(`已导出完整备份：${sorted.length} 条记录、目标和主题。`, "success");
+    });
+
     // Dark mode toggle
     const themeToggle = document.querySelector("#themeToggle");
     const THEME_KEY = "dailyDietThemeV1";
 
     function applyTheme(theme) {
-      if (theme === "dark") {
+      const isDark = theme === "dark";
+      if (isDark) {
         document.documentElement.setAttribute("data-theme", "dark");
         themeToggle.textContent = "☀️";
       } else {
         document.documentElement.removeAttribute("data-theme");
         themeToggle.textContent = "🌙";
       }
+      themeToggle.setAttribute("aria-label", isDark ? "切换到浅色模式" : "切换到深色模式");
+      themeToggle.title = isDark ? "切换到浅色模式" : "切换到深色模式";
     }
 
     function initTheme() {
@@ -3679,16 +3948,21 @@
     }
 
     themeToggle.addEventListener("click", () => {
+      if (!ensureRestoreRecovery()) return;
       const isDark = document.documentElement.getAttribute("data-theme") === "dark";
       const next = isDark ? "light" : "dark";
       applyTheme(next);
-      storageSet(THEME_KEY, next);
+      const saved = storageSet(THEME_KEY, next);
+      if (saved !== true) {
+        showToast("主题已切换，但当前浏览器无法保存偏好。", "error");
+      }
     });
 
     initTheme();
 
     loadTargets();
     loadRecords();
+    recoverRestoreJournal();
     if (corruptRecordsRaw) {
       setMessage(formMessage, `检测到${corruptRecordsStatus}；首次保存会原样备份到 dailyDietRecordsV1CorruptBackupV1。`, "error");
     }

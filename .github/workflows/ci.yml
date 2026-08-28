@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Regression tests
+        run: node test-reliability.js
+
+      - name: Two-entry parity check
+        run: node test-parity.js
+
+      - name: Inline JS syntax check
+        run: node check-html-syntax.js
+
+      - name: Repository structure check
+        run: node check-repo-structure.js
