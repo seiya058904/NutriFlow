@@ -596,6 +596,89 @@
       font-weight: 700;
     }
 
+    .stats-group-label {
+      grid-column: 1 / -1;
+      margin-top: 4px;
+      color: var(--soft);
+      font-size: 12px;
+      font-weight: 760;
+      letter-spacing: 0.08em;
+    }
+
+    .stat.stat-accent {
+      border-color: rgba(10, 132, 255, 0.38);
+      background: linear-gradient(180deg, rgba(10, 132, 255, 0.13), rgba(10, 132, 255, 0.05));
+    }
+
+    .stat.stat-accent .stat-value {
+      color: var(--blue-deep);
+    }
+
+    .stat.stat-compact {
+      min-height: 0;
+      padding: 14px 16px;
+      box-shadow: none;
+    }
+
+    .stat.stat-wide {
+      grid-column: span 2;
+    }
+
+    .stat.stat-compact .stat-value {
+      margin-top: 6px;
+      font-size: 20px;
+    }
+
+    .stat.stat-compact .stat-note {
+      margin-top: 8px;
+    }
+
+    .stat-value.is-empty {
+      color: var(--soft);
+      font-size: 19px;
+      font-weight: 700;
+    }
+
+    .utility-group-label {
+      margin-top: 18px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+      color: var(--soft);
+      font-size: 12px;
+      font-weight: 760;
+      letter-spacing: 0.08em;
+    }
+
+    .utility-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .btn.quiet {
+      min-height: 36px;
+      padding: 0 14px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+      background: transparent;
+      box-shadow: inset 0 0 0 1px var(--line);
+    }
+
+    .btn.quiet:hover {
+      transform: none;
+      color: var(--text);
+      background: var(--btn-secondary-bg);
+      box-shadow: inset 0 0 0 1px var(--line);
+    }
+
+    .utility-hint {
+      color: var(--soft);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
     .charts {
       display: grid;
       gap: 16px;
@@ -2055,7 +2138,7 @@
     <section class="utility-grid">
       <section class="panel">
         <div class="panel-inner">
-          <h2>批量导入</h2>
+            <h2>导入与导出</h2>
           <p class="import-help">从表格复制后粘贴到这里。先写日期，再写摄入即可；也支持 2/12：650、2月12日 650大卡、2026.2.12，650 这类写法。体重、蛋白质和饮水可以空着。</p>
           <textarea id="importText" placeholder="2/12：650&#10;2月13日 1000大卡&#10;2026.2.14，600"></textarea>
           <div class="button-row" style="margin-top: 12px;">
@@ -2063,14 +2146,18 @@
             <button class="btn secondary" type="button" id="confirmImportBtn">确认录入</button>
             <button class="btn secondary" type="button" id="clearImportBtn">清空导入框</button>
           </div>
-          <div class="button-row" style="margin-top: 8px;">
-            <button class="btn secondary" type="button" id="exportBtn">导出 CSV</button>
-            <button class="btn secondary" type="button" id="exportJsonBtn" title="导出与浏览器存储一致的 JSON 备份，可用“导入文件”恢复">导出 JSON</button>
-            <button class="btn secondary" type="button" id="exportFullJsonBtn" title="导出包含记录、目标和主题的完整备份，可用“导入文件”恢复">导出完整备份</button>
-            <label class="btn secondary" style="cursor: pointer; margin: 0;">
+          <div class="utility-group-label">导出与备份</div>
+          <div class="utility-actions" style="margin-top: 10px;">
+            <button class="btn quiet" type="button" id="exportBtn">导出 CSV</button>
+            <button class="btn quiet" type="button" id="exportJsonBtn" title="导出与浏览器存储一致的 JSON 备份，可用“导入文件”恢复">导出 JSON</button>
+            <button class="btn quiet" type="button" id="exportFullJsonBtn" title="导出包含记录、目标和主题的完整备份，可用“导入文件”恢复">导出完整备份</button>
+          </div>
+          <div class="utility-actions" style="margin-top: 8px;">
+            <label class="btn quiet" style="cursor: pointer; margin: 0;">
               导入文件
               <input type="file" id="fileImportInput" accept=".csv,.json" style="display: none;">
             </label>
+            <span class="utility-hint">选择之前导出的 CSV / JSON 备份文件</span>
           </div>
           <div class="import-preview" id="importPreview"></div>
           <p class="message" id="importMessage"></p>
@@ -2866,31 +2953,45 @@
       const bmiText = bmi === null ? "未填" : roundValue(bmi);
       const bmiNote = bmi === null ? "设置身高后显示" : bmiCategory(bmi);
 
-      const cards = [
-        statCard("已记录", sorted.length, "天", habitReview),
-        statCard("最近摄入", latest.intake, "kcal"),
+      const latestGroup = [
+        statCard("最近摄入", latest.intake, "kcal", "", "stat-accent"),
         statCard("最近体重", latest.weight === "" ? "未填" : latest.weight, latest.weight === "" ? "" : "kg"),
-        statCard("最近饮水", (latest.water === "" || latest.water === undefined) ? "未填" : latest.water, (latest.water === "" || latest.water === undefined) ? "" : "ml"),
         statCard("最近蛋白质", latest.protein === "" ? "未填" : latest.protein, latest.protein === "" ? "" : "g"),
-        statCard("平均蛋白", averageProtein === null ? "未填" : roundValue(averageProtein), averageProtein === null ? "" : "g/天"),
+        statCard("最近饮水", (latest.water === "" || latest.water === undefined) ? "未填" : latest.water, (latest.water === "" || latest.water === undefined) ? "" : "ml"),
       ];
-
-      if (dailyTargets.height) {
-        cards.push(statCard("BMI", bmiText, "", bmiNote));
-      }
-
-      cards.push(statCard("平均饮水", averageWater === null ? "未填" : roundValue(averageWater), averageWater === null ? "" : "ml/天"));
-      cards.push(statCard("平均周体重变化", weeklyWeightChange === null ? "未填" : formatSignedValue(weeklyWeightChange), weeklyWeightChange === null ? "" : "kg/周", weeklyWeightReview));
 
       const last7 = recordsInLastCalendarDays(sorted, 7);
       const avgIntake7 = averageFilledValue(last7, "intake");
       const rate = weeklyTargetRate(last7, dailyTargets.intake, "热量", "kcal");
       const proteinRate = weeklyTargetRate(last7, dailyTargets.protein, "蛋白", "g");
-      cards.push(statCard("近 7 天达标", rate.text, "", rate.note));
-      cards.push(statCard("近 7 天蛋白达标", proteinRate.text, "", proteinRate.note));
-      cards.push(statCard("平均摄入", avgIntake7 === null ? "--" : roundValue(avgIntake7), avgIntake7 === null ? "" : "kcal/天", "近 7 天"));
+      const weekGroup = [
+        statCard("近 7 天达标", rate.text, "", rate.note === "近 7 天" ? "" : rate.note),
+        statCard("近 7 天蛋白达标", proteinRate.text, "", proteinRate.note === "近 7 天" ? "" : proteinRate.note),
+        statCard("平均摄入", avgIntake7 === null ? "--" : roundValue(avgIntake7), avgIntake7 === null ? "" : "kcal/天"),
+      ];
 
-      stats.innerHTML = cards.join("");
+      const trendGroup = [
+        statCard("平均周体重变化", weeklyWeightChange === null ? "未填" : formatSignedValue(weeklyWeightChange), weeklyWeightChange === null ? "" : "kg/周", weeklyWeightReview, "stat-compact"),
+      ];
+
+      if (dailyTargets.height) {
+        trendGroup.push(statCard("BMI", bmiText, "", bmiNote, "stat-compact"));
+      }
+
+      trendGroup.push(
+        statCard("平均蛋白", averageProtein === null ? "未填" : roundValue(averageProtein), averageProtein === null ? "" : "g/天", "", "stat-compact"),
+        statCard("平均饮水", averageWater === null ? "未填" : roundValue(averageWater), averageWater === null ? "" : "ml/天", "", "stat-compact"),
+        statCard("已记录", sorted.length, "天", habitReview, "stat-compact stat-wide"),
+      );
+
+      stats.innerHTML = [
+        statsGroupLabel("最近一天"),
+        ...latestGroup,
+        statsGroupLabel("近 7 天达成"),
+        ...weekGroup,
+        statsGroupLabel("长期趋势"),
+        ...trendGroup,
+      ].join("");
     }
 
     function averageFilledValue(records, key) {
@@ -2989,15 +3090,22 @@
       return value > 0 ? `+${rounded}` : rounded;
     }
 
-    function statCard(name, value, unit, note = "") {
+    function statCard(name, value, unit, note = "", variant = "") {
+      const isEmpty = value === "未填" || value === "--" || value === "";
+      const classes = ["stat"];
+      if (variant) classes.push(variant);
       return `
-        <div class="stat">
+        <div class="${classes.join(" ")}">
           <div class="stat-name">${name}</div>
-          <div class="stat-value">${value}</div>
+          <div class="stat-value${isEmpty ? " is-empty" : ""}">${value}</div>
           <div class="stat-unit">${unit}</div>
           ${note ? `<div class="stat-note">${note}</div>` : ""}
         </div>
       `;
+    }
+
+    function statsGroupLabel(text) {
+      return `<div class="stats-group-label">${text}</div>`;
     }
 
     function renderCharts(sorted) {
