@@ -25,6 +25,7 @@
       --radius: 24px;
       --chart-bg: #fbfbfd;
       --input-bg: rgba(255, 255, 255, 0.86);
+      --input-focus-bg: #fff;
       --btn-secondary-bg: rgba(236, 239, 245, 0.94);
       --toast-bg: rgba(255, 255, 255, 0.96);
       --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
@@ -51,6 +52,7 @@
       --shadow-soft: 0 10px 28px rgba(0, 0, 0, 0.3);
       --chart-bg: #2c2c2e;
       --input-bg: rgba(58, 58, 60, 0.86);
+      --input-focus-bg: #3a3a3c;
       --btn-secondary-bg: rgba(58, 58, 60, 0.94);
       --toast-bg: rgba(44, 44, 46, 0.96);
     }
@@ -301,7 +303,7 @@
     input:focus,
     textarea:focus {
       border-color: var(--blue);
-      background: #fff;
+      background: var(--input-focus-bg);
       box-shadow: 0 0 0 4px rgba(10, 132, 255, 0.13);
     }
 
