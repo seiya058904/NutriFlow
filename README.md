@@ -8,9 +8,23 @@ Minimal Daily Nutrition & Weight Tracking
 
 ## 使用方法
 
+### Open Web App
+
+访问在线版即可直接开始记录（上线后）：
+
+```text
+https://seiya058904.github.io/NutriFlow/
+```
+
+在线版由 GitHub Actions 自动发布 `NutriFlow.html`，不会包含开发种子数据。
+
+### Download Offline Version
+
 下载 **`NutriFlow.html`** 这一个文件，双击后用浏览器打开即可。
 
-> 请不要下载 `index.html`。该文件包含开发者演示数据，普通用户只需要 `NutriFlow.html`。
+> 请不要下载仓库根目录的 `index.html`。该文件是开发/演示版，包含种子数据；正式离线版始终是 `NutriFlow.html`。
+
+在线版与离线版使用不同的浏览器来源，`localStorage` 数据不会自动互通。需要迁移时，使用“导出完整备份”再在另一个入口“导入完整备份”。
 
 ## 主要功能
 
@@ -74,6 +88,7 @@ GitHub Actions 会在 push / PR 时自动运行以上检查。
 - `test-reliability.js`：核心逻辑回归测试。
 - `test-parity.js`：双 HTML 一致性检查。
 - `manifest.json`、`sw.js`：仅服务于 `index.html` 的 PWA 缓存。
+- `.github/workflows/pages.yml`：GitHub Pages 在线发行 workflow，只发布 `NutriFlow.html` 为线上 `index.html`。
 
 ## License
 

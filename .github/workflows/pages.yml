@@ -1,0 +1,55 @@
+name: Deploy NutriFlow to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Verify production source is the clean single-file entry
+        run: |
+          if grep -qE "INITIAL_RECORDS|importInitialRecords|SEED_KEY" NutriFlow.html; then
+            echo "Refusing to publish dev seed data from NutriFlow.html" >&2
+            exit 1
+          fi
+          echo "NutriFlow.html is the clean production entry"
+
+      - name: Prepare Pages artifact
+        run: |
+          mkdir -p _site
+          cp NutriFlow.html _site/index.html
+          touch _site/.nojekyll
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
