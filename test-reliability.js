@@ -39,9 +39,10 @@ function app(file, clock, storage = {}) {
     RegExp,
     setTimeout() {},
     clearTimeout() {},
-    window: { setTimeout() {}, clearTimeout() {}, requestAnimationFrame(fn) { fn(); } },
+    window: { setTimeout() {}, clearTimeout() {}, requestAnimationFrame(fn) { fn(); }, addEventListener() {} },
     document: {
       documentElement,
+      addEventListener() {},
       querySelector(selector) { if (!values.has(selector)) values.set(selector, element()); return values.get(selector); },
       createElement() { return element(); }
     },

@@ -1756,7 +1756,11 @@
     .grid .stack:nth-child(1) .panel:nth-child(2) { animation-delay: 170ms; }
     .grid .stack:nth-child(1) .panel:nth-child(3) { animation-delay: 250ms; }
     .grid .stack:nth-child(2) .panel:nth-child(1) { animation-delay: 150ms; }
-    .grid .stack:nth-child(2) .panel:nth-child(2) { animation-delay: 230ms; }
+
+    .grid > .records-section {
+      animation: riseIn var(--dur-3) var(--ease-out-soft) both;
+      animation-delay: 230ms;
+    }
 
     /* 数据更新弹跳：统计卡数值在重渲染时轻跳一下 */
     .stat-value {
@@ -1942,34 +1946,10 @@
     .utility-grid .panel:nth-child(1) { animation-delay: 260ms; }
     .utility-grid .panel:nth-child(2) { animation-delay: 330ms; }
 
-    /* —— 第七轮：高度平衡与滚动视口 —— */
+    /* —— 桌面端：全部记录横跨两列，填掉左栏下方的页面级空洞 —— */
     @media (min-width: 768px) {
-      .grid > .stack:nth-child(2) {
-        align-self: stretch;
-        display: flex;
-        flex-direction: column;
-      }
-
-      .grid > .stack:nth-child(2) > .panel:last-child {
-        flex: 1;
-        min-height: 0;
-        display: flex;
-        flex-direction: column;
-      }
-
-      .grid > .stack:nth-child(2) > .panel:last-child .panel-inner {
-        flex: 1;
-        min-height: 0;
-        display: flex;
-        flex-direction: column;
-      }
-
-      .grid > .stack:nth-child(2) > .panel:last-child .records {
-        flex: 1 1 0;
-        height: 0;
-        min-height: 320px;
-        max-height: none;
-        contain: size;
+      .grid > .records-section {
+        grid-column: 1 / -1;
       }
     }
 
@@ -2126,14 +2106,14 @@
             <div class="charts" id="charts" style="margin-top: 14px;"></div>
           </div>
         </section>
-
-        <section class="panel">
-          <div class="panel-inner">
-            <h2>全部记录</h2>
-            <div class="records" id="records"></div>
-          </div>
-        </section>
       </div>
+
+      <section class="panel records-section">
+        <div class="panel-inner">
+          <h2>全部记录</h2>
+          <div class="records" id="records"></div>
+        </div>
+      </section>
     </section>
     <section class="utility-grid">
       <section class="panel">
@@ -2836,6 +2816,12 @@
       }, next - new Date());
     }
 
+    // 标签页休眠跨天后恢复：定时器可能已被节流或丢失，唤醒时立即重算今天。
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) refreshToday();
+    });
+    window.addEventListener("pageshow", refreshToday);
+
     function updateFormTitle() {
       formTitle.textContent = selectedDate === today ? "今天记录" : `编辑 ${formatDateText(selectedDate)}`;
     }
@@ -3443,7 +3429,7 @@
           "day",
           record ? "has-record" : "",
           date === selectedDate ? "selected" : "",
-          date === today ? "today" : ""
+          date === toDateString(new Date()) ? "today" : ""
         ].filter(Boolean).join(" ");
         const actionText = record ? "编辑当天记录" : "新增当天记录";
         const statusText = status ? `，目标${status.label}：${status.details.join("，")}` : "";
@@ -4211,7 +4197,123 @@
     todayText.textContent = `今天：${formatDateText(today)}`;
     render();
     scheduleTodayRefresh();
+
+    // 桌面鼠标滚轮 Lenis 式平滑：滚轮只推进虚拟目标位，渲染位置逐帧逼近，
+    // 连续滚动累加同一目标，反向时目标立即随新输入移动。
+    // 仅 fine pointer；reduced-motion / Ctrl/Cmd 缩放 / Shift 横向 / 触摸 /
+    // textarea 与记录列表等内部可滚动区域均保持原生。
+    const finePointerQuery = window.matchMedia("(pointer: fine)");
+    const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const SMOOTH_WHEEL_LERP = 0.11;
+    const SMOOTH_WHEEL_EPSILON = 0.5;
+    const smoothWheel = { current: 0, target: 0, lastFrame: 0, raf: 0, animating: false, ticked: false, watchdog: 0 };
+
+    function wheelDeltaPixels(event) {
+      if (event.deltaMode === 1) return event.deltaY * 16;
+      if (event.deltaMode === 2) return event.deltaY * window.innerHeight;
+      return event.deltaY;
+    }
+
+    function cancelSmoothWheelFrame() {
+      if (smoothWheel.raf) {
+        cancelAnimationFrame(smoothWheel.raf);
+        smoothWheel.raf = 0;
+      }
+      if (smoothWheel.watchdog) {
+        clearTimeout(smoothWheel.watchdog);
+        smoothWheel.watchdog = 0;
+      }
+    }
+
+    function syncSmoothWheelToNative() {
+      smoothWheel.current = window.scrollY;
+      smoothWheel.target = window.scrollY;
+      smoothWheel.animating = false;
+      cancelSmoothWheelFrame();
+    }
+
+    function finishSmoothWheel() {
+      smoothWheel.current = smoothWheel.target;
+      window.scrollTo(0, smoothWheel.current);
+      smoothWheel.animating = false;
+      cancelSmoothWheelFrame();
+    }
+
+    function smoothWheelStep(timestamp) {
+      smoothWheel.ticked = true;
+      const dt = smoothWheel.lastFrame ? Math.min(timestamp - smoothWheel.lastFrame, 64) : 16.7;
+      smoothWheel.lastFrame = timestamp;
+      // 帧率归一化：任意刷新率下收敛速度与 60fps 一致（同 Lenis 的做法）。
+      const lerp = 1 - Math.pow(1 - SMOOTH_WHEEL_LERP, dt / 16.7);
+      smoothWheel.current += (smoothWheel.target - smoothWheel.current) * lerp;
+      if (Math.abs(smoothWheel.target - smoothWheel.current) < SMOOTH_WHEEL_EPSILON) {
+        finishSmoothWheel();
+        return;
+      }
+      window.scrollTo(0, smoothWheel.current);
+      smoothWheel.raf = requestAnimationFrame(smoothWheelStep);
+    }
+
+    function findInnerScrollable(startNode, deltaY) {
+      let node = startNode;
+      while (node && node !== document.documentElement) {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          const overflowY = getComputedStyle(node).overflowY;
+          if ((overflowY === "auto" || overflowY === "scroll") && node.scrollHeight > node.clientHeight + 1) {
+            const atTop = node.scrollTop <= 0;
+            const atBottom = node.scrollTop + node.clientHeight >= node.scrollHeight - 1;
+            if ((deltaY > 0 && !atBottom) || (deltaY < 0 && !atTop)) {
+              return node;
+            }
+          }
+        }
+        node = node.parentNode;
+      }
+      return null;
+    }
+
+    window.addEventListener("wheel", (event) => {
+      if (!finePointerQuery.matches || reducedMotionQuery.matches) return;
+      if (event.ctrlKey || event.metaKey || event.shiftKey) return;
+      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+      if (findInnerScrollable(event.target, event.deltaY)) {
+        syncSmoothWheelToNative();
+        return;
+      }
+      event.preventDefault();
+      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      const base = smoothWheel.animating ? smoothWheel.target : window.scrollY;
+      smoothWheel.target = Math.max(0, Math.min(maxScroll, base + wheelDeltaPixels(event)));
+      if (!smoothWheel.animating) {
+        smoothWheel.current = window.scrollY;
+        smoothWheel.lastFrame = 0;
+        smoothWheel.animating = true;
+      }
+      if (!smoothWheel.raf) {
+        smoothWheel.ticked = false;
+        smoothWheel.raf = requestAnimationFrame(smoothWheelStep);
+        // 兜底：仅当 rAF 完全停摆（页面挂起）时触发，正常 Chrome 中不可达。
+        if (!smoothWheel.watchdog) {
+          smoothWheel.watchdog = setTimeout(() => {
+            smoothWheel.watchdog = 0;
+            if (!smoothWheel.ticked) finishSmoothWheel();
+          }, 250);
+        }
+      }
+    }, { passive: false });
+
+    // 原生滚动（滚动条、键盘、导航恢复）重新锚定；动画期间忽略自己 scrollTo 触发的 scroll 事件。
+    window.addEventListener("scroll", () => {
+      if (!smoothWheel.animating) syncSmoothWheelToNative();
+    }, { passive: true });
+
+    window.addEventListener("keydown", (event) => {
+      if (["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "].includes(event.key)) {
+        syncSmoothWheelToNative();
+      }
+    }, { passive: true });
   </script>
+
   <script>
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("sw.js").catch(() => {});
