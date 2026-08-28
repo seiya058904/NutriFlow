@@ -24,6 +24,13 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
+      - name: Run canonical verification before publish
+        run: |
+          node test-reliability.js
+          node test-parity.js
+          node check-html-syntax.js
+          node check-repo-structure.js
+
       - name: Verify production source is the clean single-file entry
         run: |
           if grep -qE "INITIAL_RECORDS|importInitialRecords|SEED_KEY" NutriFlow.html; then
