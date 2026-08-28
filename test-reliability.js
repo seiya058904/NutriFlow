@@ -21,6 +21,11 @@ function app(file, clock, storage = {}) {
     if (Array.isArray(storage.__throwSet) && storage.__throwSet.includes(key)) return true;
     return false;
   }
+  function storageRemoveError(key) {
+    if (storage.__throwRemove === key) return true;
+    if (Array.isArray(storage.__throwRemove) && storage.__throwRemove.includes(key)) return true;
+    return storageError(key);
+  }
   function makeStorageError() {
     const error = new Error(storage.__throwMessage || "storage failure");
     if (storage.__throwName) error.name = storage.__throwName;
@@ -56,7 +61,7 @@ function app(file, clock, storage = {}) {
         setCounts.set(key, count);
         storage[key] = value;
       },
-      removeItem(key) { if (storageError(key)) throw makeStorageError(); delete storage[key]; }
+      removeItem(key) { if (storageRemoveError(key)) throw makeStorageError(); delete storage[key]; }
     },
     confirm() { return true; },
     applyTheme(theme) { documentElement.setAttribute("data-theme", theme); },
@@ -375,6 +380,47 @@ for (const file of ["NutriFlow.html", "index.html"]) {
   assert.equal(badSchemaJournal.api.getRestoreRecoveryPending(), true, `${file}: bad schema journal marks pending`);
   assert.equal(badSchemaJournal.api.saveRecords(), false, `${file}: bad schema journal blocks saves`);
   assert.ok(badSchemaJournal.storage.dailyDietRestoreJournalV1, `${file}: bad schema journal is preserved`);
+
+
+  let removeFailBackup = makeBackupInstance();
+  removeFailBackup.storage.__throwRemove = "dailyDietRestoreJournalV1";
+  assert.equal(removeFailBackup.api.restoreFullBackup(backup), false, `${file}: full backup with journal-removal failure returns false`);
+  assert.equal(removeFailBackup.api.getRestoreRecoveryPending(), true, `${file}: full backup with journal-removal failure keeps recovery pending`);
+  assert.ok(removeFailBackup.storage.dailyDietRestoreJournalV1, `${file}: full backup with journal-removal failure preserves journal`);
+  assert.deepEqual(JSON.parse(removeFailBackup.storage.dailyDietRecordsV1), JSON.parse(originalRecordsJson), `${file}: full backup with journal-removal failure rolls records back to old state`);
+  assert.equal(removeFailBackup.storage.dailyDietTargetsV1, originalTargetsJson, `${file}: full backup with journal-removal failure rolls targets back to old state`);
+  assert.equal(removeFailBackup.storage.dailyDietThemeV1, "light", `${file}: full backup with journal-removal failure rolls theme back to old state`);
+  assert.equal(removeFailBackup.api.applyRecordMutationAndSave(() => {
+    removeFailBackup.api.recordsByDate.set("2026-09-01", { date: "2026-09-01", intake: 1, weight: "", protein: "", water: "" });
+  }), false, `${file}: stale journal from failed full backup blocks record mutation`);
+  assert.equal(removeFailBackup.api.writeTargets({ intake: 1, protein: "", height: "", water: "" }), false, `${file}: stale journal from failed full backup blocks target save`);
+  assert.equal(removeFailBackup.api.storageSet("dailyDietThemeV1", "dark"), false, `${file}: stale journal from failed full backup blocks theme persistence`);
+  assert.equal(removeFailBackup.api.restoreFullBackup(backup), false, `${file}: stale journal from failed full backup blocks another restore`);
+  assert.ok(removeFailBackup.storage.dailyDietRestoreJournalV1, `${file}: stale journal from failed full backup remains intact`);
+  removeFailBackup.storage.__throwRemove = undefined;
+  assert.equal(removeFailBackup.api.recoverRestoreJournal(), true, `${file}: failed full backup recovery can finalize after removeItem is available`);
+  assert.equal(removeFailBackup.api.getRestoreRecoveryPending(), false, `${file}: failed full backup recovery clears pending after finalize`);
+  assert.equal(removeFailBackup.storage.dailyDietRestoreJournalV1, undefined, `${file}: failed full backup recovery removes journal after finalize`);
+  assert.equal(removeFailBackup.api.saveRecords(), true, `${file}: normal persistence works after failed full backup finalizes`);
+
+  let removeFailRecovery = makePendingJournalInstance(false);
+  removeFailRecovery.storage.__throwRemove = "dailyDietRestoreJournalV1";
+  assert.equal(removeFailRecovery.api.recoverRestoreJournal(), false, `${file}: journal recovery with removal failure returns false`);
+  assert.equal(removeFailRecovery.api.getRestoreRecoveryPending(), true, `${file}: journal recovery with removal failure keeps recovery pending`);
+  assert.ok(removeFailRecovery.storage.dailyDietRestoreJournalV1, `${file}: journal recovery with removal failure preserves journal`);
+  assert.equal(removeFailRecovery.api.applyRecordMutationAndSave(() => {
+    removeFailRecovery.api.recordsByDate.set("2026-09-01", { date: "2026-09-01", intake: 1, weight: "", protein: "", water: "" });
+  }), false, `${file}: unresolved journal recovery blocks record mutation`);
+  assert.equal(removeFailRecovery.api.writeTargets({ intake: 1, protein: "", height: "", water: "" }), false, `${file}: unresolved journal recovery blocks target save`);
+  assert.equal(removeFailRecovery.api.storageSet("dailyDietThemeV1", "dark"), false, `${file}: unresolved journal recovery blocks theme persistence`);
+  assert.equal(removeFailRecovery.api.restoreFullBackup(backup), false, `${file}: unresolved journal recovery blocks another restore`);
+  assert.ok(removeFailRecovery.storage.dailyDietRestoreJournalV1, `${file}: unresolved journal recovery remains intact`);
+  removeFailRecovery.storage.__throwRemove = undefined;
+  assert.equal(removeFailRecovery.api.recoverRestoreJournal(), true, `${file}: journal recovery can finalize after removeItem is available`);
+  assert.equal(removeFailRecovery.api.getRestoreRecoveryPending(), false, `${file}: journal recovery clears pending after finalize`);
+  assert.equal(removeFailRecovery.storage.dailyDietRestoreJournalV1, undefined, `${file}: journal recovery removes journal after finalize`);
+  assert.deepEqual(JSON.parse(removeFailRecovery.storage.dailyDietRecordsV1), JSON.parse(originalRecordsJson), `${file}: journal recovery finalizes records`);
+  assert.equal(removeFailRecovery.api.saveRecords(), true, `${file}: normal persistence works after journal recovery finalizes`);
 
 
 

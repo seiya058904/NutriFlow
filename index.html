@@ -2432,6 +2432,16 @@
       }
     }
 
+    function storageRemove(key) {
+      try {
+        localStorage.removeItem(key);
+        return true;
+      } catch (error) {
+        if (error && error.name === "SecurityError") storageUnavailable = true;
+        return false;
+      }
+    }
+
     function restoreFullBackup(backup) {
       if (!backup || !Array.isArray(backup.records)) return false;
       if (backup.schemaVersion !== undefined && backup.schemaVersion !== 1) return false;
@@ -2464,8 +2474,8 @@
       const targetsSaved = writeTargets(dailyTargets);
       const themeSaved = storageSet(THEME_KEY, restoreTheme) === true;
       if (recordsSaved && targetsSaved && themeSaved) {
-        try { localStorage.removeItem(RESTORE_JOURNAL_KEY); } catch (error) {}
-        return true;
+        if (storageRemove(RESTORE_JOURNAL_KEY)) return true;
+        restoreRecoveryPending = true;
       }
 
       recordsByDate.clear();
@@ -2479,8 +2489,10 @@
       if (recordsSaved) rollbackOk = writeStorageDirect(STORAGE_KEY, oldRecords) && rollbackOk;
       if (targetsSaved) rollbackOk = writeStorageDirect(TARGET_STORAGE_KEY, oldTargets) && rollbackOk;
       if (themeSaved) rollbackOk = writeStorageDirect(THEME_KEY, oldTheme) && rollbackOk;
-      if (rollbackOk) {
-        try { localStorage.removeItem(RESTORE_JOURNAL_KEY); } catch (error) {}
+      if (rollbackOk && storageRemove(RESTORE_JOURNAL_KEY)) {
+        restoreRecoveryPending = false;
+      } else {
+        restoreRecoveryPending = true;
       }
       return false;
     }
@@ -2515,7 +2527,10 @@
       const targetsOk = writeStorageDirect(TARGET_STORAGE_KEY, journal.targets);
       const themeOk = writeStorageDirect(THEME_KEY, journal.theme);
       if (recordsOk && targetsOk && themeOk) {
-        try { localStorage.removeItem(RESTORE_JOURNAL_KEY); } catch (error) {}
+        if (!storageRemove(RESTORE_JOURNAL_KEY)) {
+          restoreRecoveryPending = true;
+          return false;
+        }
         restoreRecoveryPending = false;
         loadRecords();
         loadTargets();
