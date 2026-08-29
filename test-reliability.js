@@ -440,6 +440,39 @@ for (const file of ["NutriFlow.html", "index.html"]) {
   assert.equal(instance.api.groupRecordsByCalendarWeek(sparseRecords).length, 2, `${file}: calendar-week buckets`);
   assert.deepEqual(JSON.parse(JSON.stringify(instance.api.groupRecordsByCalendarWeek(sparseRecords).map(x => x.label))), ["2026-06-29 至 2026-07-05", "2026-07-13 至 2026-07-19"], `${file}: Monday-Sunday labels`);
   assert.deepEqual(JSON.parse(JSON.stringify(instance.api.groupRecordsByCalendarWeek(sparseRecords).map(x => x.avg))), [1100, 2100], `${file}: sparse weeks are not merged`);
+
+  // O(n) 滑动窗口实现必须与朴素参考实现逐点一致（含跨月/跨年与稀疏间隙）。
+  const dayMs = 86400000;
+  const toOrdinal = (dateString) => {
+    const [year, month, day] = dateString.split("-").map(Number);
+    return Math.round(Date.UTC(year, month - 1, day) / dayMs);
+  };
+  const fromOrdinal = (ordinal) => new Date(ordinal * dayMs).toISOString().slice(0, 10);
+  const slidingDates = [];
+  let cursor = toOrdinal("2025-11-20");
+  for (let i = 0; i < 140; i += 1) {
+    slidingDates.push(fromOrdinal(cursor));
+    cursor += (i % 7 === 3) ? 3 : 1;
+  }
+  const slidingValues = slidingDates.map((date, index) => ({ index, date, value: 500 + ((index * 137) % 1900) }));
+  for (const windowDays of [3, 7, 30]) {
+    const sliding = instance.api.movingAverage(slidingValues, slidingValues, windowDays).map((x) => x.value);
+    const naive = slidingValues.map((point) => {
+      const startString = fromOrdinal(toOrdinal(point.date) - (windowDays - 1));
+      const group = slidingValues.filter((item) => item.date >= startString && item.date <= point.date);
+      return Math.round(group.reduce((sum, item) => sum + Number(item.value), 0) / group.length);
+    });
+    assert.deepEqual(sliding, naive, `${file}: sliding-window average matches naive reference (${windowDays}d)`);
+  }
+  // 部分值序列 + 完整序列（摄入图的真实调用形态）也要一致。
+  const partialValues = slidingValues.filter((_, index) => index % 2 === 0);
+  const partialSliding = instance.api.movingAverage(partialValues, slidingValues, 7).map((x) => x.value);
+  const partialNaive = partialValues.map((point) => {
+    const startString = fromOrdinal(toOrdinal(point.date) - 6);
+    const group = slidingValues.filter((item) => item.date >= startString && item.date <= point.date);
+    return Math.round(group.reduce((sum, item) => sum + Number(item.value), 0) / group.length);
+  });
+  assert.deepEqual(partialSliding, partialNaive, `${file}: sliding-window average matches naive reference (partial vs all)`);
 }
 
 console.log("NutriFlow reliability regression tests passed");
