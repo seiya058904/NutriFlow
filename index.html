@@ -3140,6 +3140,8 @@ ${viewButtons}
     function makeHoverPoints(values, x, y, bottom, pad, width, unit, color) {
       const tooltipWidth = 108;
       const tooltipHeight = 42;
+      // 超长历史不生成逐点 hover 命中组，只保留趋势线与日期轴。
+      if (values.length > HOVER_POINT_LIMIT) return "";
 
       return values.map((point, index) => {
         const pointX = x(point.index);
@@ -3927,8 +3929,9 @@ ${viewButtons}
     function jumpToToday() {
       calendarYear = Number(today.slice(0, 4));
       calendarMonth = Number(today.slice(5, 7)) - 1;
-      selectedDate = today;
-      updateSelectedDayUI();
+      // 走完整选日路径：表单、日历、回顾与 selectedDate 保持同步，
+      // 避免出现“标题是今天、表单还是历史数据”的半同步状态。
+      selectCalendarDate(today);
     }
 
     function stepWater(delta) {
