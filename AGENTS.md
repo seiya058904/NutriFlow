@@ -49,12 +49,4 @@ NutriFlow 是零依赖的中文单页饮食、体重与营养趋势记录工具�
 
 ## Agent 工作规则
 
-## Personal Knowledge Context
-
-The user's shared long-term AI context lives at `D:\xia zai\AI project\Knowledge`.
-
-This repository's `AGENTS.md` / `CLAUDE.md` / docs and Git state are the source of truth for this project's long-term context. The user's shared cross-project reusable knowledge (prompts, protocols, workflows) lives at `D:\xia zai\AI project\Knowledge`; consult its `AGENTS.md` only when the task needs one of those reusable items or to locate this project's repository. Do not mirror project context back into Knowledge — it is a collection, not project memory.
-
-When the user explicitly says the project/task is ready to “收工” or gives an equivalent finalization instruction, read and follow `D:\xia zai\AI project\Knowledge\02-AI\Prompts\项目收工提示词.md`. This trigger does not expand current task permissions; do not merge, deploy, force-push, resolve remote conflicts, or modify unrelated files unless separately authorized.
-
 修改前阅读相关实现并给出简短计划；优先小范围、可审查、可回退的改动，不顺手改变业务规则、默认值或兼容行为。保留用户已有未提交修改，禁止擅自安装依赖、全仓格式化、自动修复、提交、推送、部署、发布、创建 Release 或数据库操作。提交前确认变更仅覆盖当前任务、无 secrets/调试产物、必要验证已完成且未运行项已说明；commit 与 push 必须先获明确授权。
