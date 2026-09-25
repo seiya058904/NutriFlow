@@ -24,10 +24,12 @@
       --border-strong: rgba(88, 96, 115, 0.32);
       --text-primary: #1d1d1f;
       --text-secondary: #565e6c;
-      --text-tertiary: #8a94a6;
+      --text-tertiary: #646d7b;
 
       /* 强调色与语义状态 */
       --accent: #0a84ff;
+      /* 白字实心操作面专用：白字在 #0a84ff 上约 3.6:1，在 #0071e3 上约 4.7:1；品牌蓝 --accent 保持不变 */
+      --accent-action: #0071e3;
       --accent-deep: #0064d2;
       --accent-soft: rgba(10, 132, 255, 0.12);
       --success: #1f8a3b;
@@ -86,7 +88,7 @@
       --border-strong: rgba(255, 255, 255, 0.24);
       --text-primary: #f5f5f7;
       --text-secondary: #a4a9b0;
-      --text-tertiary: #6f747d;
+      --text-tertiary: #8f96a2;
       --accent: #0a84ff;
       --accent-deep: #409cff;
       --accent-soft: rgba(10, 132, 255, 0.2);
@@ -336,7 +338,23 @@
     }
 
     .theme-btn {
-      font-size: 17px;
+      color: var(--text-primary);
+    }
+
+    .theme-btn .theme-icon {
+      display: block;
+    }
+
+    .theme-icon-sun {
+      display: none;
+    }
+
+    [data-theme="dark"] .theme-icon-sun {
+      display: block;
+    }
+
+    [data-theme="dark"] .theme-icon-moon {
+      display: none;
     }
 
     /* ---- 4.2 表单与按钮 ---- */
@@ -406,7 +424,7 @@
       font-weight: 720;
       font-size: 14px;
       color: #fff;
-      background: var(--accent);
+      background: var(--accent-action);
       transition: transform var(--dur-fast) var(--ease-out-soft), box-shadow var(--dur-fast) ease, filter var(--dur-fast) ease;
     }
 
@@ -538,7 +556,6 @@
 
     .target-progress-card {
       padding: 12px 13px;
-      border: 1px solid var(--border-subtle);
       border-radius: var(--radius-sm);
       background: var(--surface-secondary);
     }
@@ -601,7 +618,6 @@
 
     .summary-card {
       padding: 14px 16px;
-      border: 1px solid var(--border-subtle);
       border-radius: 16px;
       background: var(--surface-secondary);
       min-width: 0;
@@ -702,7 +718,7 @@
     }
 
     .range-btn.active {
-      background: var(--accent);
+      background: var(--accent-action);
       color: #fff;
     }
 
@@ -811,71 +827,199 @@
       font-weight: 760;
     }
 
-    /* ---- 4.6 次级统计（更安静的层） ---- */
+    /* ---- 4.6 次级统计：三个分组表面 + 组内指标，不再是一排同款卡片 ---- */
     .stats {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 12px;
+      gap: 14px;
     }
 
-    .stat {
+    .stats-group {
       min-width: 0;
-      padding: 13px 15px;
-      border: 1px solid var(--border-subtle);
+      padding: 16px;
       border-radius: var(--radius-sm);
       background: var(--surface-secondary);
     }
 
-    .stat-name {
+    .stats-group-title {
+      margin: 0 0 12px;
+      color: var(--text-secondary);
+      font-size: 13px;
+      line-height: 1.3;
+      font-weight: 760;
+    }
+
+    /* 最近一天：2×2 大数字网格，视觉重量最高 */
+    .stat-latest {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .stat-cell {
+      min-width: 0;
+      padding: 2px 16px 14px 0;
+    }
+
+    .stat-cell:nth-child(even) {
+      padding-right: 0;
+      padding-left: 16px;
+      border-left: 1px solid var(--border-subtle);
+    }
+
+    .stat-cell:nth-child(n+3) {
+      padding-top: 13px;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .stat-cell-label {
+      display: block;
       color: var(--text-tertiary);
       font-size: 12px;
       font-weight: 700;
     }
 
-    .stat-value {
-      margin-top: 7px;
-      font-size: 21px;
-      line-height: 1.15;
+    .stat-cell-value {
+      display: block;
+      margin-top: 6px;
+      font-size: 26px;
+      line-height: 1.05;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      overflow-wrap: anywhere;
+    }
+
+    .stat-cell-unit {
+      margin-left: 5px;
+      color: var(--text-tertiary);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .stat-cell-value.is-empty {
+      color: var(--text-tertiary);
+      font-size: 17px;
+      font-weight: 700;
+    }
+
+    /* 近 7 天达成：比例 + 小进度条，安静的目标状态 */
+    .stat-week-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 14px;
+    }
+
+    .stat-week-item {
+      min-width: 0;
+    }
+
+    .stat-week-top {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .stat-week-label {
+      color: var(--text-tertiary);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .stat-week-ratio {
+      font-size: 17px;
+      line-height: 1.1;
       font-weight: 760;
       font-variant-numeric: tabular-nums;
       overflow-wrap: anywhere;
     }
 
-    .stat-unit {
+    .stat-week-ratio.is-empty {
+      color: var(--text-tertiary);
+      font-size: 14px;
+      font-weight: 650;
+    }
+
+    .stat-week-unit {
+      margin-left: 4px;
       color: var(--text-tertiary);
       font-size: 12px;
       font-weight: 600;
     }
 
-    .stat-note {
-      display: inline-flex;
-      width: fit-content;
-      margin-top: 8px;
-      padding: 4px 8px;
-      border: 1px solid var(--border-subtle);
+    .stat-week-track {
+      height: 6px;
+      margin-top: 9px;
+      overflow: hidden;
       border-radius: 999px;
+      background: var(--progress-track-bg);
+    }
+
+    .stat-week-fill {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--fill-good);
+      transition: width var(--dur-normal) var(--ease-out-soft);
+    }
+
+    .stat-week-note {
+      margin-top: 8px;
+      color: var(--text-tertiary);
+      font-size: 12px;
+      font-weight: 650;
+      line-height: 1.45;
+    }
+
+    /* 长期趋势：键值行，用分隔线而不是卡片 */
+    .stat-rows {
+      display: grid;
+      margin: 0;
+    }
+
+    .stat-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 2px 12px;
+      padding: 9px 0;
+    }
+
+    .stat-row + .stat-row {
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .stat-row dt {
       color: var(--text-secondary);
-      font-size: 11px;
-      font-weight: 700;
+      font-size: 13px;
+      font-weight: 650;
     }
 
-    .stats-group-label {
-      grid-column: 1 / -1;
-      margin-top: 2px;
-      color: var(--text-tertiary);
-      font-size: 11px;
+    .stat-row dd {
+      margin: 0 0 0 auto;
+      font-size: 15px;
       font-weight: 760;
-      letter-spacing: 0.08em;
+      font-variant-numeric: tabular-nums;
+      overflow-wrap: anywhere;
     }
 
-    .stat.stat-wide {
-      grid-column: span 2;
-    }
-
-    .stat-value.is-empty {
+    .stat-row dd.is-empty {
       color: var(--text-tertiary);
-      font-size: 16px;
-      font-weight: 700;
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .stat-row-unit {
+      margin-left: 4px;
+      color: var(--text-tertiary);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .stat-row-note {
+      flex-basis: 100%;
+      color: var(--text-tertiary);
+      font-size: 12px;
+      font-weight: 650;
+      line-height: 1.45;
     }
 
     /* ---- 4.7 日历与选中日回顾 ---- */
@@ -969,7 +1113,7 @@
     }
 
     .day.selected {
-      background: var(--accent);
+      background: var(--accent-action);
       color: #fff;
     }
 
@@ -1051,7 +1195,6 @@
       padding: 10px 12px;
       border-radius: var(--radius-sm);
       background: var(--surface-primary);
-      border: 1px solid var(--border-subtle);
     }
 
     .mini span {
@@ -1096,7 +1239,6 @@
       align-items: center;
       gap: 8px 14px;
       padding: 11px 14px;
-      border: 1px solid var(--border-subtle);
       border-radius: var(--radius-sm);
       transition: background var(--dur-fast) ease;
     }
@@ -1213,34 +1355,88 @@
       white-space: nowrap;
     }
 
-    .utility-group-label {
-      margin-top: 18px;
-      padding-top: 14px;
+    /* 数据与备份内部分成两个逻辑组：批量导入 / 备份与迁移 */
+    .data-group + .data-group {
+      margin-top: 20px;
+      padding-top: 18px;
       border-top: 1px solid var(--border-subtle);
-      color: var(--text-tertiary);
-      font-size: 12px;
-      font-weight: 760;
-      letter-spacing: 0.08em;
     }
 
-    .utility-actions {
+    .data-group-title {
+      margin: 0 0 4px;
+      font-size: 14px;
+      line-height: 1.3;
+      font-weight: 760;
+      letter-spacing: -0.1px;
+    }
+
+    .data-group-hint {
+      margin: 0 0 12px;
+      color: var(--text-tertiary);
+      font-size: 12px;
+      line-height: 1.55;
+      font-weight: 600;
+    }
+
+    .import-actions {
+      margin-top: 12px;
+    }
+
+    /* 备份组：完整备份是推荐操作，导入备份紧随其后，CSV/JSON 是次级工具 */
+    .backup-actions {
       display: flex;
       gap: 10px;
       flex-wrap: wrap;
-      align-items: center;
     }
 
-    .utility-hint {
+    .backup-actions .btn {
+      flex: 1 1 auto;
+    }
+
+    .backup-hint {
+      margin: 10px 0 0;
       color: var(--text-tertiary);
       font-size: 12px;
-      line-height: 1.5;
+      line-height: 1.55;
+      font-weight: 600;
+    }
+
+    .backup-utility {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .backup-utility .btn.quiet {
+      flex: 1 1 130px;
+    }
+
+    .btn.secondary.confirm-ready {
+      background: var(--accent-action);
+      color: #fff;
+      box-shadow: none;
     }
 
     .file-label {
+      position: relative;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
+    }
+
+    .file-label input[type="file"] {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .file-label:focus-within {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
     }
 
     /* ---- 4.10 数据与备份折叠面板 ---- */
@@ -1526,6 +1722,15 @@
         background: var(--surface-hover);
       }
 
+      .btn.secondary.confirm-ready:hover {
+        background: var(--accent-action);
+        box-shadow: 0 8px 18px rgba(10, 132, 255, 0.26);
+      }
+
+      .chip-step:hover {
+        background: var(--surface-hover);
+      }
+
       .btn.quiet:hover {
         color: var(--text-primary);
       }
@@ -1535,7 +1740,7 @@
       }
 
       .range-btn.active:hover {
-        background: var(--accent);
+        background: var(--accent-action);
       }
 
       .icon-btn:hover,
@@ -1556,7 +1761,7 @@
       }
 
       .day.selected:hover {
-        background: var(--accent);
+        background: var(--accent-action);
       }
 
       .record:hover {
@@ -1571,8 +1776,10 @@
       .app {
         grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
       }
+    }
 
-      .stats {
+    @media (min-width: 1024px) {
+      .stat-week-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
       }
     }
@@ -1622,21 +1829,27 @@
         margin-left: auto;
       }
 
-      .stats {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-
       .field-row {
         grid-template-columns: 1fr;
       }
 
       .button-row {
         display: grid;
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr 1fr;
+      }
+
+      /* 主操作独占一行保持最强层级，次级操作并排 */
+      .button-row > .btn:first-child {
+        grid-column: 1 / -1;
       }
 
       .btn {
         width: 100%;
+      }
+
+      .backup-actions .btn,
+      .backup-utility .btn.quiet {
+        width: auto;
       }
 
       .trend-summary {
@@ -1705,7 +1918,8 @@
       }
     }
 
-    @media (max-width: 390px) {
+    /* ≤620px 统一承载移动端收窄规则（带滚动条环境下更小的断点不保证触发） */
+    @media (max-width: 620px) {
       .app {
         width: min(100% - 20px, 1400px);
       }
@@ -1730,7 +1944,10 @@
       </div>
       <div class="header-side">
         <span class="today-pill" id="todayText">今天</span>
-        <button class="icon-btn theme-btn" type="button" id="themeToggle" aria-label="切换深色模式"> </button>
+        <button class="icon-btn theme-btn" type="button" id="themeToggle" aria-label="切换深色模式">
+          <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg>
+          <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg>
+        </button>
       </div>
     </header>
 
@@ -1770,7 +1987,7 @@
           <div class="button-row">
             <button class="btn" type="submit">保存记录</button>
             <button class="btn secondary" type="button" id="copyLatestBtn" title="把最近一条已有记录的数值带入当前表单">复制上次</button>
-            <button class="btn secondary" type="button" id="clearFormBtn">清空输入</button>
+            <button class="btn quiet" type="button" id="clearFormBtn">清空输入</button>
           </div>
           <p class="message" id="formMessage"></p>
         </form>
@@ -1856,29 +2073,38 @@
     <details class="panel data-panel">
       <summary>
         数据与备份
-        <span class="data-summary-hint">导入 / 导出 CSV、JSON 与完整备份恢复</span>
+        <span class="data-summary-hint">批量导入、导出 CSV / JSON 与完整备份恢复</span>
       </summary>
       <div class="panel-inner">
-        <p class="import-help">从表格复制后粘贴到这里。先写日期，再写摄入即可；也支持 2/12：650、2月12日 650大卡、2026.2.12，650 这类写法。体重、蛋白质和饮水可以空着。</p>
-        <textarea id="importText" placeholder="2/12：650&#10;2月13日 1000大卡&#10;2026.2.14，600"></textarea>
-        <div class="button-row" style="margin-top: 12px;">
-          <button class="btn" type="button" id="importBtn">先预览</button>
-          <button class="btn secondary" type="button" id="confirmImportBtn">确认录入</button>
-          <button class="btn secondary" type="button" id="clearImportBtn">清空导入框</button>
-        </div>
-        <div class="import-preview" id="importPreview"></div>
-        <p class="message" id="importMessage"></p>
-        <div class="utility-group-label">导出与备份</div>
-        <div class="utility-actions" style="margin-top: 10px;">
-          <button class="btn quiet" type="button" id="exportBtn">导出 CSV</button>
-          <button class="btn quiet" type="button" id="exportJsonBtn" title="导出与浏览器存储一致的 JSON 备份，可用“导入文件”恢复">导出 JSON</button>
-          <button class="btn quiet" type="button" id="exportFullJsonBtn" title="导出包含记录、目标和主题的完整备份，可用“导入文件”恢复">导出完整备份</button>
-          <label class="btn quiet file-label">
-            导入文件
-            <input type="file" id="fileImportInput" accept=".csv,.json" style="display: none;">
-          </label>
-          <span class="utility-hint">选择之前导出的 CSV / JSON 备份文件</span>
-        </div>
+        <section class="data-group" aria-label="批量导入记录">
+          <h3 class="data-group-title">批量导入记录</h3>
+          <p class="import-help">从表格复制后粘贴到这里。先写日期，再写摄入即可；也支持 2/12：650、2月12日 650大卡、2026.2.12，650 这类写法。体重、蛋白质和饮水可以空着。</p>
+          <textarea id="importText" placeholder="2/12：650&#10;2月13日 1000大卡&#10;2026.2.14，600"></textarea>
+          <div class="button-row import-actions">
+            <button class="btn" type="button" id="importBtn">先预览</button>
+            <button class="btn secondary" type="button" id="confirmImportBtn">确认录入</button>
+            <button class="btn quiet" type="button" id="clearImportBtn">清空导入框</button>
+          </div>
+          <div class="import-preview" id="importPreview"></div>
+          <p class="message" id="importMessage"></p>
+        </section>
+        <section class="data-group" aria-label="备份与迁移">
+          <h3 class="data-group-title">备份与迁移</h3>
+          <p class="data-group-hint">推荐定期导出完整备份；换设备或换浏览器时，用它恢复。</p>
+          <div class="backup-actions">
+            <button class="btn" type="button" id="exportFullJsonBtn" title="导出包含记录、目标和主题的完整备份">导出完整备份</button>
+            <label class="btn secondary file-label">
+              导入备份
+              <input type="file" id="fileImportInput" accept=".csv,.json">
+            </label>
+          </div>
+          <p class="backup-hint">完整备份包含记录、目标与主题；导入备份会替换这三类数据，恢复失败会自动回滚。</p>
+          <div class="backup-utility">
+            <button class="btn quiet" type="button" id="exportBtn">导出 CSV</button>
+            <button class="btn quiet" type="button" id="exportJsonBtn" title="导出与浏览器存储一致的 JSON 备份，兼容旧版">导出 JSON</button>
+          </div>
+          <p class="backup-hint">CSV 适合在表格软件中查看；JSON 与旧版备份兼容，两者都可用「导入备份」恢复。</p>
+        </section>
       </div>
     </details>
 
@@ -2231,6 +2457,7 @@
       pendingImportRecords = [];
       importPreview.classList.remove("show");
       importPreview.innerHTML = "";
+      confirmImportBtn.classList.remove("confirm-ready");
     }
 
     function loadRecords() {
@@ -2589,45 +2816,120 @@
       const bmiText = bmi === null ? "未填" : roundValue(bmi);
       const bmiNote = bmi === null ? "设置身高后显示" : bmiCategory(bmi);
 
-      const latestGroup = [
-        statCard("最近摄入", latest.intake, "kcal", ""),
-        statCard("最近体重", latest.weight === "" ? "未填" : latest.weight, latest.weight === "" ? "" : "kg"),
-        statCard("最近蛋白质", latest.protein === "" ? "未填" : latest.protein, latest.protein === "" ? "" : "g"),
-        statCard("最近饮水", (latest.water === "" || latest.water === undefined) ? "未填" : latest.water, (latest.water === "" || latest.water === undefined) ? "" : "ml"),
+      const latestHasWater = latest.water === "" || latest.water === undefined;
+      const latestItems = [
+        { key: "最近摄入", label: "摄入", value: `${latest.intake}`, unit: "kcal" },
+        { key: "最近体重", label: "体重", value: latest.weight === "" ? "未填" : `${latest.weight}`, unit: latest.weight === "" ? "" : "kg" },
+        { key: "最近蛋白质", label: "蛋白质", value: latest.protein === "" ? "未填" : `${latest.protein}`, unit: latest.protein === "" ? "" : "g" },
+        { key: "最近饮水", label: "饮水", value: latestHasWater ? "未填" : `${latest.water}`, unit: latestHasWater ? "" : "ml" }
       ];
 
       const last7 = recordsInLastCalendarDays(sorted, 7);
       const avgIntake7 = averageFilledValue(last7, "intake");
       const rate = weeklyTargetRate(last7, dailyTargets.intake, "热量", "kcal");
       const proteinRate = weeklyTargetRate(last7, dailyTargets.protein, "蛋白", "g");
-      const weekGroup = [
-        statCard("近 7 天达标", rate.text, "", rate.note === "近 7 天" ? "" : rate.note),
-        statCard("近 7 天蛋白达标", proteinRate.text, "", proteinRate.note === "近 7 天" ? "" : proteinRate.note),
-        statCard("平均摄入", avgIntake7 === null ? "--" : roundValue(avgIntake7), avgIntake7 === null ? "" : "kcal/天"),
+      const weeklyItems = [
+        { key: "近 7 天达标", label: "热量达标", rate },
+        { key: "近 7 天蛋白达标", label: "蛋白达标", rate: proteinRate },
+        { key: "平均摄入", label: "平均摄入", value: avgIntake7 === null ? "--" : roundValue(avgIntake7), unit: avgIntake7 === null ? "" : "kcal/天" }
       ];
 
-      const trendGroup = [
-        statCard("平均周体重变化", weeklyWeightChange === null ? "未填" : formatSignedValue(weeklyWeightChange), weeklyWeightChange === null ? "" : "kg/周", weeklyWeightReview, "stat-compact"),
+      const trendRows = [
+        {
+          key: "平均周体重变化",
+          value: weeklyWeightChange === null ? "未填" : formatSignedValue(weeklyWeightChange),
+          unit: weeklyWeightChange === null ? "" : "kg/周",
+          note: weeklyWeightReview
+        }
       ];
-
       if (dailyTargets.height) {
-        trendGroup.push(statCard("BMI", bmiText, "", bmiNote, "stat-compact"));
+        trendRows.push({ key: "BMI", value: bmiText, unit: "", note: bmiNote });
       }
-
-      trendGroup.push(
-        statCard("平均蛋白", averageProtein === null ? "未填" : roundValue(averageProtein), averageProtein === null ? "" : "g/天", "", "stat-compact"),
-        statCard("平均饮水", averageWater === null ? "未填" : roundValue(averageWater), averageWater === null ? "" : "ml/天", "", "stat-compact"),
-        statCard("已记录", sorted.length, "天", habitReview, "stat-compact stat-wide"),
+      trendRows.push(
+        { key: "平均蛋白", value: averageProtein === null ? "未填" : roundValue(averageProtein), unit: averageProtein === null ? "" : "g/天", note: "" },
+        { key: "平均饮水", value: averageWater === null ? "未填" : roundValue(averageWater), unit: averageWater === null ? "" : "ml/天", note: "" },
+        { key: "已记录", value: `${sorted.length}`, unit: "天", note: habitReview }
       );
 
       stats.innerHTML = [
-        statsGroupLabel("最近一天"),
-        ...latestGroup,
-        statsGroupLabel("近 7 天达成"),
-        ...weekGroup,
-        statsGroupLabel("长期趋势"),
-        ...trendGroup,
+        `
+        <section class="stats-group">
+          <h3 class="stats-group-title">最近一天</h3>
+          <div class="stat-latest">${latestItems.map(latestCell).join("")}</div>
+        </section>
+        `,
+        `
+        <section class="stats-group">
+          <h3 class="stats-group-title">近 7 天达成</h3>
+          <div class="stat-week-grid">${weeklyItems.map(weeklyCell).join("")}</div>
+        </section>
+        `,
+        `
+        <section class="stats-group">
+          <h3 class="stats-group-title">长期趋势</h3>
+          <dl class="stat-rows">${trendRows.map(trendRow).join("")}</dl>
+        </section>
+        `
       ].join("");
+    }
+
+    // 数值变化时才给 number-pop，首次渲染不播放入场动画。
+    function statValueChanged(name, value) {
+      const previous = previousStatValues.get(name);
+      previousStatValues.set(name, String(value));
+      return previous !== undefined && previous !== String(value);
+    }
+
+    function latestCell(item) {
+      const isEmpty = item.value === "未填" || item.value === "--";
+      const changed = statValueChanged(item.key, item.value);
+      return `
+        <div class="stat-cell">
+          <span class="stat-cell-label">${item.label}</span>
+          <strong class="stat-cell-value${isEmpty ? " is-empty" : ""}${changed ? " number-pop" : ""}">${item.value}${item.unit ? `<span class="stat-cell-unit">${item.unit}</span>` : ""}</strong>
+        </div>
+      `;
+    }
+
+    function weeklyCell(item) {
+      if (item.rate) {
+        const { text, note, hit, count } = item.rate;
+        const changed = statValueChanged(item.key, text);
+        const hasBar = count > 0;
+        const percent = hasBar ? Math.round((hit / count) * 100) : 0;
+        return `
+          <div class="stat-week-item">
+            <div class="stat-week-top">
+              <span class="stat-week-label">${item.label}</span>
+              <strong class="stat-week-ratio${text === "--" ? " is-empty" : ""}${changed ? " number-pop" : ""}">${text}</strong>
+            </div>
+            ${hasBar
+              ? `<div class="stat-week-track" role="img" aria-label="${item.label} ${text}"><span class="stat-week-fill" style="width:${percent}%"></span></div>`
+              : `<div class="stat-week-note">${note}</div>`}
+          </div>
+        `;
+      }
+      const changed = statValueChanged(item.key, item.value);
+      return `
+        <div class="stat-week-item">
+          <div class="stat-week-top">
+            <span class="stat-week-label">${item.label}</span>
+            <strong class="stat-week-ratio${changed ? " number-pop" : ""}">${item.value}${item.unit ? `<span class="stat-week-unit">${item.unit}</span>` : ""}</strong>
+          </div>
+        </div>
+      `;
+    }
+
+    function trendRow(row) {
+      const isEmpty = row.value === "未填" || row.value === "--";
+      const changed = statValueChanged(row.key, row.value);
+      return `
+        <div class="stat-row">
+          <dt>${row.key}</dt>
+          <dd class="${isEmpty ? "is-empty" : ""}${changed ? " number-pop" : ""}">${row.value}${row.unit ? `<span class="stat-row-unit">${row.unit}</span>` : ""}</dd>
+          ${row.note ? `<span class="stat-row-note">${row.note}</span>` : ""}
+        </div>
+      `;
     }
 
     function averageFilledValue(records, key) {
@@ -2641,15 +2943,15 @@
     }
 
     function weeklyTargetRate(records, target, targetMetricName, targetUnit) {
-      if (!target || !Number(target)) return { text: "--", note: "未设目标" };
+      if (!target || !Number(target)) return { text: "--", note: "未设目标", hit: 0, count: 0 };
       const dataKey = targetMetricName === "热量" ? "intake" : targetMetricName === "蛋白" ? "protein" : "water";
       const withData = records.filter((record) => record[dataKey] !== "");
-      if (!withData.length) return { text: "--", note: "暂无数据" };
+      if (!withData.length) return { text: "--", note: "暂无数据", hit: 0, count: 0 };
       const hit = withData.filter(r => {
         const s = metricTargetStatus(targetMetricName, r[dataKey], target, targetUnit);
         return s && s.level === "good";
       }).length;
-      return { text: `${hit}/${withData.length}`, note: "近 7 天" };
+      return { text: `${hit}/${withData.length}`, note: "近 7 天", hit, count: withData.length };
     }
 
     function averageWeeklyWeightChange(records) {
@@ -2718,28 +3020,6 @@
     function formatSignedValue(value) {
       const rounded = roundValue(value);
       return value > 0 ? `+${rounded}` : rounded;
-    }
-
-
-    function statCard(name, value, unit, note = "", variant = "") {
-      const isEmpty = value === "未填" || value === "--" || value === "";
-      const previous = previousStatValues.get(name);
-      const changed = previous !== undefined && previous !== String(value);
-      previousStatValues.set(name, String(value));
-      const classes = ["stat"];
-      if (variant) classes.push(variant);
-      return `
-        <div class="${classes.join(" ")}">
-          <div class="stat-name">${name}</div>
-          <div class="stat-value${isEmpty ? " is-empty" : ""}${changed ? " number-pop" : ""}">${value}</div>
-          <div class="stat-unit">${unit}</div>
-          ${note ? `<div class="stat-note">${note}</div>` : ""}
-        </div>
-      `;
-    }
-
-    function statsGroupLabel(text) {
-      return `<div class="stats-group-label">${text}</div>`;
     }
 
 
@@ -3453,6 +3733,8 @@ ${viewButtons}
         <div class="import-preview-list">${rows}</div>
       `;
       importPreview.classList.add("show");
+      // 有合法的待确认预览时，确认录入才升级为主按钮视觉。
+      confirmImportBtn.classList.add("confirm-ready");
     }
 
     function showPetSpeech() {
@@ -3894,12 +4176,11 @@ ${viewButtons}
 
     function applyTheme(theme) {
       const isDark = theme === "dark";
+      // 图标由 CSS 按 data-theme 切换，这里只负责属性与可访问名称。
       if (isDark) {
         document.documentElement.setAttribute("data-theme", "dark");
-        themeToggle.textContent = "☀️";
       } else {
         document.documentElement.removeAttribute("data-theme");
-        themeToggle.textContent = "🌙";
       }
       themeToggle.setAttribute("aria-label", isDark ? "切换到浅色模式" : "切换到深色模式");
       themeToggle.title = isDark ? "切换到浅色模式" : "切换到深色模式";
