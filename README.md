@@ -10,7 +10,7 @@ Minimal Daily Nutrition & Weight Tracking
 
 ### Open Web App
 
-访问在线版即可直接开始记录（上线后）：
+访问在线版即可直接开始记录：
 
 ```text
 https://seiya058904.github.io/NutriFlow/
@@ -93,4 +93,4 @@ GitHub Actions 会在 push / PR 时自动运行以上检查。
 
 ## License
 
-当前仓库未声明 License。正式分发前请先选择并添加合适的 License。
+当前仓库未声明开源 License。除非另有说明，代码版权归项目作者所有。
