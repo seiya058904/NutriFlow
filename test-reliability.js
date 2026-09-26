@@ -2,7 +2,7 @@ const assert = require("assert");
 const fs = require("fs");
 const vm = require("vm");
 
-function app(file, clock, storage = {}) {
+function app(file, clock, storage = {}, contextExtras = {}) {
   const html = fs.readFileSync(file, "utf8");
   const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
   const cut = script.indexOf('document.querySelector("#recordForm")');
@@ -64,14 +64,17 @@ function app(file, clock, storage = {}) {
       removeItem(key) { if (storageRemoveError(key)) throw makeStorageError(); delete storage[key]; }
     },
     confirm() { return true; },
+    location: { protocol: "http:" },
     applyTheme(theme) { documentElement.setAttribute("data-theme", theme); },
     THEME_KEY: "dailyDietThemeV1"
   };
+  Object.assign(context, contextExtras);
   vm.createContext(context);
-  vm.runInContext(`${script.slice(0, cut)}; globalThis.test = { loadRecords, loadTargets, saveRecords, getSortedRecords, consecutiveRecordDays, refreshToday, makeIntakeOverview, movingAverage, groupRecordsByCalendarWeek, parseImportRows, findDuplicateDates, applyRecordMutationAndSave, recordsByDate, renderTargetProgress, metricTargetStatus, restoreFullBackup, normalizeTargetsObject, writeStorageDirect, setDailyTargets: (targets) => { dailyTargets = targets; }, getDailyTargets: () => ({ ...dailyTargets }), renderStorageStatus, getStorageUnavailable: () => storageUnavailable, writeTargets, storageSet, recoverRestoreJournal, ensureRestoreRecovery, isValidRestoreJournal, getRestoreRecoveryPending: () => restoreRecoveryPending, getState: () => ({ today, selectedDate, calendarYear, calendarMonth }) };`, context);
+  vm.runInContext(`${script.slice(0, cut)}; globalThis.test = { loadRecords, loadTargets, saveRecords, getSortedRecords, consecutiveRecordDays, refreshToday, makeIntakeOverview, movingAverage, groupRecordsByCalendarWeek, parseImportRows, findDuplicateDates, applyRecordMutationAndSave, recordsByDate, renderTargetProgress, metricTargetStatus, restoreFullBackup, normalizeTargetsObject, writeStorageDirect, setDailyTargets: (targets) => { dailyTargets = targets; }, getDailyTargets: () => ({ ...dailyTargets }), renderStorageStatus, getStorageUnavailable: () => storageUnavailable, writeTargets, saveTargets, storageSet, recoverRestoreJournal, ensureRestoreRecovery, importInitialRecords: typeof importInitialRecords === "function" ? importInitialRecords : undefined, persistThemeToggle, isValidRestoreJournal, getRestoreRecoveryPending: () => restoreRecoveryPending, getState: () => ({ today, selectedDate, calendarYear, calendarMonth }) };`, context);
   return { api: context.test, storage, context };
 }
 
+(async () => {
 for (const file of ["NutriFlow.html", "index.html"]) {
   const raw = '[{"date":"2026-07-20","intake":1500},{"date":"bad","intake":-1}]';
   const clock = { value: "2026-07-27T12:00:00" };
@@ -108,6 +111,99 @@ for (const file of ["NutriFlow.html", "index.html"]) {
   assert.equal(JSON.stringify(instance.api.getState()), beforeState, `${file}: failed transaction restores selection`);
   assert.match(instance.api.parseImportRows("2026-07-20,100\n2026-07-20,200").errors.join(" "), /日期重复/, `${file}: text duplicate rejected`);
   assert.deepEqual(JSON.parse(JSON.stringify(instance.api.findDuplicateDates([{ date: "2026-07-20" }, { date: "2026-07-20" }, { date: "2026-07-21" }, { date: "2026-07-21" }]))), ["2026-07-20", "2026-07-21"], `${file}: shared duplicate helper`);
+
+  // 跨窗口同步：另一标签页的写入不得被本标签页的陈旧快照覆盖，删除不得被复活
+  const sharedStorage = {};
+  const windowA = app(file, clock, sharedStorage);
+  const windowB = app(file, clock, sharedStorage);
+  windowA.api.loadRecords();
+  windowB.api.loadRecords();
+  windowB.api.applyRecordMutationAndSave(() => windowB.api.recordsByDate.set("2026-07-20", { date: "2026-07-20", intake: 900, weight: "", protein: "", water: "" }));
+  windowA.api.applyRecordMutationAndSave(() => windowA.api.recordsByDate.set("2026-07-21", { date: "2026-07-21", intake: 800, weight: "", protein: "", water: "" }));
+  const sharedFinal = JSON.parse(sharedStorage.dailyDietRecordsV1);
+  assert.ok(sharedFinal.some((r) => r.date === "2026-07-20" && r.intake === 900), `${file}: cross-tab added record survives other window's save`);
+  assert.ok(sharedFinal.some((r) => r.date === "2026-07-21" && r.intake === 800), `${file}: local mutation still applies after external write`);
+  windowB.api.applyRecordMutationAndSave(() => windowB.api.recordsByDate.delete("2026-07-21"));
+  windowA.api.applyRecordMutationAndSave(() => windowA.api.recordsByDate.set("2026-07-22", { date: "2026-07-22", intake: 700, weight: "", protein: "", water: "" }));
+  const sharedAfterDelete = JSON.parse(sharedStorage.dailyDietRecordsV1);
+  assert.ok(!sharedAfterDelete.some((r) => r.date === "2026-07-21"), `${file}: cross-tab deletion is not resurrected by stale snapshot`);
+  assert.ok(sharedAfterDelete.some((r) => r.date === "2026-07-22"), `${file}: addition after external delete still lands`);
+
+  // Web Locks 互斥路径：两个窗口从同一基线“同时”发起保存（两次调用都不等待），
+  // 锁把两次 read-modify-write 串行化，最终两条记录都必须存在
+  const lockChains = {};
+  const makeLockContext = () => ({
+    navigator: {
+      locks: {
+        request(name, callback) {
+          lockChains[name] = (lockChains[name] || Promise.resolve()).then(() => Promise.resolve().then(callback));
+          return lockChains[name];
+        }
+      }
+    }
+  });
+  const lockStorage = {};
+  const lockedA = app(file, clock, lockStorage, makeLockContext());
+  const lockedB = app(file, clock, lockStorage, makeLockContext());
+  lockedA.api.loadRecords();
+  lockedB.api.loadRecords();
+  const pendingA = lockedA.api.applyRecordMutationAndSave(() => lockedA.api.recordsByDate.set("2026-07-20", { date: "2026-07-20", intake: 900, weight: "", protein: "", water: "" }));
+  const pendingB = lockedB.api.applyRecordMutationAndSave(() => lockedB.api.recordsByDate.set("2026-07-21", { date: "2026-07-21", intake: 800, weight: "", protein: "", water: "" }));
+  assert.equal(typeof pendingA.then, "function", `${file}: locked path returns a promise`);
+  await Promise.all([pendingA, pendingB]);
+  const lockedFinal = JSON.parse(lockStorage.dailyDietRecordsV1);
+  assert.ok(lockedFinal.some((r) => r.date === "2026-07-20" && r.intake === 900), `${file}: simultaneous save keeps A's record`);
+  assert.ok(lockedFinal.some((r) => r.date === "2026-07-21" && r.intake === 800), `${file}: simultaneous save keeps B's record`);
+
+  // targets 锁：并发保存时后写入者发现基线变化被阻止并得到解释
+  const targetsLockStorage = {};
+  const targetsLockChains = {};
+  const makeTargetsLockContext = () => ({
+    navigator: {
+      locks: {
+        request(name, callback) {
+          targetsLockChains[name] = (targetsLockChains[name] || Promise.resolve()).then(() => Promise.resolve().then(callback));
+          return targetsLockChains[name];
+        }
+      }
+    }
+  });
+  const targetsOwnerA = app(file, clock, targetsLockStorage, makeTargetsLockContext());
+  const targetsOwnerB = app(file, clock, targetsLockStorage, makeTargetsLockContext());
+  targetsOwnerA.api.loadTargets();
+  targetsOwnerB.api.loadTargets();
+  targetsOwnerA.context.document.querySelector("#targetIntakeInput").value = "2100";
+  targetsOwnerB.context.document.querySelector("#targetIntakeInput").value = "2200";
+  await Promise.all([
+    targetsOwnerA.api.saveTargets(),
+    targetsOwnerB.api.saveTargets()
+  ]);
+  const storedTargetsIntake = JSON.parse(targetsLockStorage.dailyDietTargetsV1).intake;
+  assert.ok(storedTargetsIntake === 2100 || storedTargetsIntake === 2200, `${file}: simultaneous target saves keep one coherent value`);
+  const targetsMsgA = targetsOwnerA.context.document.querySelector("#targetMessage").textContent;
+  const targetsMsgB = targetsOwnerB.context.document.querySelector("#targetMessage").textContent;
+  assert.ok(
+    (storedTargetsIntake === 2100 && /另一个窗口/.test(targetsMsgB)) || (storedTargetsIntake === 2200 && /另一个窗口/.test(targetsMsgA)),
+    `${file}: loser of simultaneous target save gets conflict notice`
+  );
+
+  // 目标跨窗口覆盖防护：表单种子之后持久化值被外部改写时，保存被阻止并刷新
+  const targetsStorage = {};
+  const targetsOwner = app(file, clock, targetsStorage);
+  targetsOwner.api.loadTargets();
+  targetsOwner.context.document.querySelector("#targetIntakeInput").value = "2000";
+  targetsOwner.api.saveTargets();
+  assert.deepEqual(JSON.parse(targetsStorage.dailyDietTargetsV1), { intake: 2000, protein: "", height: "", water: "" }, `${file}: targets save writes form values`);
+  const otherWindow = app(file, clock, targetsStorage);
+  otherWindow.api.loadTargets();
+  assert.equal(otherWindow.api.writeTargets({ intake: 2500, protein: "", height: "", water: "" }), true, `${file}: other window writes targets`);
+  targetsOwner.context.document.querySelector("#targetIntakeInput").value = "2100";
+  targetsOwner.api.saveTargets();
+  assert.deepEqual(JSON.parse(targetsStorage.dailyDietTargetsV1), { intake: 2500, protein: "", height: "", water: "" }, `${file}: stale target save is blocked by cross-window guard`);
+  assert.match(targetsOwner.context.document.querySelector("#targetMessage").textContent, /另一个窗口/, `${file}: cross-window target conflict explains itself`);
+  targetsOwner.api.loadTargets();
+  targetsOwner.api.saveTargets();
+  assert.deepEqual(JSON.parse(targetsStorage.dailyDietTargetsV1), { intake: 2500, protein: "", height: "", water: "" }, `${file}: refreshed form re-saves latest values`);
 
   const waterSamples = [
     { name: "LF with header", text: "日期,摄入(kcal),体重(kg),蛋白质(g),饮水(ml)\n2026-07-20,1500,70,60,2000", date: "2026-07-20", water: 2000 },
@@ -422,6 +518,218 @@ for (const file of ["NutriFlow.html", "index.html"]) {
   assert.deepEqual(JSON.parse(removeFailRecovery.storage.dailyDietRecordsV1), JSON.parse(originalRecordsJson), `${file}: journal recovery finalizes records`);
   assert.equal(removeFailRecovery.api.saveRecords(), true, `${file}: normal persistence works after journal recovery finalizes`);
 
+  // —— 恢复 / 日志恢复与普通写入的互斥（统一 nutriflow-data-v1-write 锁）——
+  const makeRestoreLockStub = () => {
+    const chains = {};
+    return {
+      context: () => ({
+        navigator: {
+          locks: {
+            request(name, callback) {
+              chains[name] = (chains[name] || Promise.resolve()).then(() => Promise.resolve().then(callback));
+              return chains[name];
+            }
+          }
+        }
+      }),
+      chain: (name) => chains[name]
+    };
+  };
+  const DATA_WRITE_LOCK_NAME = "nutriflow-data-v1-write";
+
+  const rgFinalProbe = (storage) => {
+    const records = JSON.parse(storage.dailyDietRecordsV1);
+    return records.some((r) => r.date === "2026-08-01");
+  };
+
+  // 1) 恢复与普通保存同时发起：串行化后终态必须是完整串行顺序（恢复单元整体生效，保存落在其上）
+  const rsLock = makeRestoreLockStub();
+  const rsStorage = {};
+  const restoreFirst = app(file, clock, rsStorage, rsLock.context());
+  const saveSecond = app(file, clock, rsStorage, rsLock.context());
+  restoreFirst.api.loadRecords();
+  restoreFirst.api.loadTargets();
+  saveSecond.api.loadRecords();
+  saveSecond.api.loadTargets();
+  const restorePending = restoreFirst.api.restoreFullBackup(backup);
+  const savePending = saveSecond.api.applyRecordMutationAndSave(() => saveSecond.api.recordsByDate.set("2026-07-21", { date: "2026-07-21", intake: 800, weight: "", protein: "", water: "" }));
+  assert.equal(await restorePending, true, `${file}: concurrent restore succeeds`);
+  assert.equal(await savePending, true, `${file}: concurrent save succeeds`);
+  const rsFinalRecords = JSON.parse(rsStorage.dailyDietRecordsV1);
+  assert.deepEqual(JSON.parse(rsStorage.dailyDietTargetsV1), backup.targets, `${file}: restore applies targets as a unit`);
+  assert.ok(backup.records.every((r) => rsFinalRecords.some((x) => x.date === r.date && x.intake === r.intake)), `${file}: restore applies records as a unit`);
+  assert.ok(rsFinalRecords.every((r) => r.date === "2026-07-21" || backup.records.some((x) => x.date === r.date)), `${file}: final state matches one complete serial order`);
+  assert.ok(!rsStorage.dailyDietRestoreJournalV1, `${file}: successful restore leaves no journal`);
+
+  // 2) 恢复中途失败回滚与普通保存同时发起：回滚先完成，随后普通保存落在回滚后状态上并幸存
+  const rbLock = makeRestoreLockStub();
+  const rbStorage = {};
+  const restoreFails = app(file, clock, rbStorage, rbLock.context());
+  const saveQueued = app(file, clock, rbStorage, rbLock.context());
+  restoreFails.api.loadRecords();
+  restoreFails.api.loadTargets();
+  saveQueued.api.loadRecords();
+  saveQueued.api.loadTargets();
+  rbStorage.__throwSet = "dailyDietTargetsV1"; // 恢复的 targets 写入失败 → 触发完整回滚
+  const failedRestorePending = restoreFails.api.restoreFullBackup(backup);
+  // 恢复的锁回调结束后、排队的普通保存开始前解除注入（锁链保证顺序）
+  rbLock.chain(DATA_WRITE_LOCK_NAME).then(() => { delete rbStorage.__throwSet; });
+  const queuedSavePending = saveQueued.api.applyRecordMutationAndSave(() => saveQueued.api.recordsByDate.set("2026-07-21", { date: "2026-07-21", intake: 800, weight: "", protein: "", water: "" }));
+  assert.equal(await failedRestorePending, false, `${file}: restore with failing targets write reports failure`);
+  assert.equal(await queuedSavePending, true, `${file}: queued normal save succeeds after failed restore's rollback`);
+  const rbFinalRecords = JSON.parse(rbStorage.dailyDietRecordsV1);
+  assert.ok(rbFinalRecords.some((r) => r.date === "2026-07-21" && r.intake === 800), `${file}: rollback does not wipe concurrently saved record`);
+  assert.ok(!rbFinalRecords.some((r) => r.date === "2026-08-01"), `${file}: failed restore leaves no restored records`);
+  assert.ok(!rbStorage.dailyDietRestoreJournalV1, `${file}: rollback after cleared injection removes journal`);
+
+  // 3) 日志恢复与普通保存同时发起：恢复先完成，普通保存落在恢复后状态上并幸存
+  const rcLock = makeRestoreLockStub();
+  const rcStorage = {
+    dailyDietRecordsV1: JSON.stringify([{ date: "2026-08-01", intake: 2000, weight: "", protein: "", water: "" }]),
+    dailyDietTargetsV1: JSON.stringify({ intake: 2500, protein: "", height: "", water: "" }),
+    dailyDietThemeV1: "dark",
+    dailyDietRestoreJournalV1: JSON.stringify({
+      schemaVersion: 1,
+      records: originalRecordsJson,
+      targets: originalTargetsJson,
+      theme: "light"
+    })
+  };
+  const recoveryTab = app(file, clock, rcStorage, rcLock.context());
+  const saveTabRc = app(file, clock, rcStorage, rcLock.context());
+  recoveryTab.api.loadRecords();
+  recoveryTab.api.loadTargets();
+  saveTabRc.api.loadRecords();
+  saveTabRc.api.loadTargets();
+  const recoveryPending = recoveryTab.api.recoverRestoreJournal();
+  const saveAfterRecoveryPending = saveTabRc.api.applyRecordMutationAndSave(() => saveTabRc.api.recordsByDate.set("2026-07-21", { date: "2026-07-21", intake: 800, weight: "", protein: "", water: "" }));
+  assert.equal(await recoveryPending, true, `${file}: journal recovery succeeds under lock`);
+  assert.equal(await saveAfterRecoveryPending, true, `${file}: normal save after recovery succeeds`);
+  assert.ok(!rcStorage.dailyDietRestoreJournalV1, `${file}: recovery removes journal under lock`);
+  const rcFinalRecords = JSON.parse(rcStorage.dailyDietRecordsV1);
+  assert.ok(rcFinalRecords.some((r) => r.date === "2026-07-20" && r.intake === 1500), `${file}: recovery restores journaled records`);
+  assert.ok(rcFinalRecords.some((r) => r.date === "2026-07-21" && r.intake === 800), `${file}: normal save survives journal recovery`);
+  assert.ok(!rcFinalRecords.some((r) => r.date === "2026-08-01"), `${file}: journal recovery replaces partial restored state`);
+
+  // 4) 跨窗口遗留日志防护：普通保存发现遗留日志时先恢复，再应用本次变更
+  const staleStorage = {
+    dailyDietRecordsV1: JSON.stringify([{ date: "2026-08-01", intake: 2000, weight: "", protein: "", water: "" }]),
+    dailyDietTargetsV1: JSON.stringify({ intake: 2500, protein: "", height: "", water: "" }),
+    dailyDietThemeV1: "dark",
+    dailyDietRestoreJournalV1: JSON.stringify({
+      schemaVersion: 1,
+      records: originalRecordsJson,
+      targets: originalTargetsJson,
+      theme: "light"
+    })
+  };
+  const staleTab = app(file, clock, staleStorage);
+  staleTab.api.loadRecords();
+  staleTab.api.loadTargets();
+  assert.equal(
+    await staleTab.api.applyRecordMutationAndSave(() => staleTab.api.recordsByDate.set("2026-07-21", { date: "2026-07-21", intake: 800, weight: "", protein: "", water: "" })),
+    true,
+    `${file}: gated save with stale journal succeeds`
+  );
+  assert.ok(!staleStorage.dailyDietRestoreJournalV1, `${file}: gated save consumes stale journal`);
+  const staleFinalRecords = JSON.parse(staleStorage.dailyDietRecordsV1);
+  assert.ok(staleFinalRecords.some((r) => r.date === "2026-07-20" && r.intake === 1500), `${file}: gated save lands on recovered records`);
+  assert.ok(staleFinalRecords.some((r) => r.date === "2026-07-21" && r.intake === 800), `${file}: gated save applies its own mutation`);
+
+  // 5) targets 遗留日志防护：gate 恢复会改写基线，恢复前冻结的表单基线必须仍判 stale
+  const stgLock = makeRestoreLockStub();
+  const stgStorage = {
+    dailyDietRecordsV1: JSON.stringify([]),
+    dailyDietTargetsV1: JSON.stringify({ intake: 2500, protein: "", height: "", water: "" }),
+    dailyDietThemeV1: "light",
+    dailyDietRestoreJournalV1: JSON.stringify({
+      schemaVersion: 1,
+      records: JSON.stringify([]),
+      targets: JSON.stringify({ intake: 1500, protein: "", height: "", water: "" }),
+      theme: "light"
+    })
+  };
+  const staleTargetsLocked = app(file, clock, stgStorage, stgLock.context());
+  staleTargetsLocked.api.loadTargets();
+  staleTargetsLocked.context.document.querySelector("#targetIntakeInput").value = "2100";
+  assert.equal(await staleTargetsLocked.api.saveTargets(), false, `${file}: targets save across stale-journal recovery is judged stale and blocked`);
+  assert.deepEqual(JSON.parse(stgStorage.dailyDietTargetsV1), { intake: 1500, protein: "", height: "", water: "" }, `${file}: recovered targets are preserved`);
+  assert.equal(staleTargetsLocked.context.document.querySelector("#targetIntakeInput").value, "1500", `${file}: UI refreshed to recovered targets`);
+  assert.match(staleTargetsLocked.context.document.querySelector("#targetMessage").textContent, /另一个窗口/, `${file}: blocked targets save explains the conflict`);
+  assert.ok(!stgStorage.dailyDietRestoreJournalV1, `${file}: gate consumed the stale journal`);
+
+  // 6) 恢复入口遗留日志防护：gate 先恢复 O，新恢复 N 在 targets 写入失败后回滚——终态必须是 O 而不是 P
+  const rgLock = makeRestoreLockStub();
+  const rgStorage = {
+    dailyDietRecordsV1: JSON.stringify([{ date: "2026-08-01", intake: 2000, weight: "", protein: "", water: "" }]),
+    dailyDietTargetsV1: JSON.stringify({ intake: 2500, protein: "", height: "", water: "" }),
+    dailyDietThemeV1: "light",
+    dailyDietRestoreJournalV1: JSON.stringify({
+      schemaVersion: 1,
+      records: originalRecordsJson,
+      targets: JSON.stringify({ intake: 1500, protein: "", height: "", water: "" }),
+      theme: "light"
+    })
+  };
+  const restoreGate = app(file, clock, rgStorage, rgLock.context());
+  restoreGate.api.loadRecords();
+  restoreGate.api.loadTargets();
+  rgStorage.__failAfterSet = { dailyDietTargetsV1: 1 }; // 恢复 O 的 targets 写入成功后，N 的 targets 写入失败
+  assert.equal(await restoreGate.api.restoreFullBackup(backup), false, `${file}: gated restore N fails at targets write`);
+  assert.deepEqual(JSON.parse(rgStorage.dailyDietRecordsV1), JSON.parse(originalRecordsJson), `${file}: gate recovered O before N and rollback returns to O`);
+  assert.equal(JSON.parse(rgStorage.dailyDietTargetsV1).intake, 1500, `${file}: O targets preserved through failed restore N`);
+  assert.ok(!rgStorage.dailyDietRestoreJournalV1, `${file}: clean rollback removes journal`);
+  assert.ok(!rgFinalProbe(rgStorage), `${file}: no partial restored records remain`);
+
+  // 7) seed 锁：种子导入走统一事务，不覆盖真实用户记录（仅 index.html 具备种子导入）
+  const seedApiProbe = app(file, clock, {}).api;
+  if (seedApiProbe.importInitialRecords) {
+  const seedStorage = {};
+  const seedChains = {};
+  const makeSeedLockContext = () => ({
+    navigator: {
+      locks: {
+        request(name, callback) {
+          seedChains[name] = (seedChains[name] || Promise.resolve()).then(() => Promise.resolve().then(callback));
+          return seedChains[name];
+        }
+      }
+    }
+  });
+  const seedUser = app(file, clock, seedStorage, makeSeedLockContext());
+  const seedDemo = app(file, clock, seedStorage, makeSeedLockContext());
+  seedUser.api.loadRecords();
+  seedDemo.api.loadRecords();
+  assert.equal(
+    await seedUser.api.applyRecordMutationAndSave(() => seedUser.api.recordsByDate.set("2026-07-21", { date: "2026-07-21", intake: 800, weight: "", protein: "", water: "" })),
+    true,
+    `${file}: user record saved before seed`
+  );
+  await seedDemo.api.importInitialRecords();
+  const seedFinal = JSON.parse(seedStorage.dailyDietRecordsV1);
+  assert.ok(seedFinal.some((r) => r.date === "2026-07-21" && r.intake === 800), `${file}: user record survives seed import under lock`);
+  assert.ok(seedFinal.some((r) => r.date === "2026-02-12" && r.intake === 650), `${file}: seed fills only dates missing from latest state`);
+  assert.equal(seedStorage.dailyDietSeed20260212To20260508, "done", `${file}: seed marker set after locked import`);
+  }
+
+  // 8) theme 事务：遗留日志存在时先恢复，再基于恢复后的主题切换并持久化
+  const themeGateStorage = {
+    dailyDietRecordsV1: JSON.stringify([]),
+    dailyDietTargetsV1: JSON.stringify({ intake: 2500, protein: "", height: "", water: "" }),
+    dailyDietThemeV1: "light",
+    dailyDietRestoreJournalV1: JSON.stringify({
+      schemaVersion: 1,
+      records: JSON.stringify([]),
+      targets: JSON.stringify({ intake: 1500, protein: "", height: "", water: "" }),
+      theme: "dark"
+    })
+  };
+  const themeGateTab = app(file, clock, themeGateStorage, makeRestoreLockStub().context());
+  assert.equal(await themeGateTab.api.persistThemeToggle(), true, `${file}: theme toggle under lock succeeds after gated recovery`);
+  assert.equal(themeGateTab.context.document.documentElement.getAttribute("data-theme"), "light", `${file}: recovery applied dark then toggle flipped to light`);
+  assert.ok(!themeGateStorage.dailyDietRestoreJournalV1, `${file}: theme transaction consumes stale journal`);
+  assert.equal(themeGateStorage.dailyDietThemeV1, "light", `${file}: toggled theme persisted`);
+
 
 
 
@@ -476,3 +784,7 @@ for (const file of ["NutriFlow.html", "index.html"]) {
 }
 
 console.log("NutriFlow reliability regression tests passed");
+})().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

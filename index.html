@@ -2314,6 +2314,8 @@
     let lastPetLineIndex = -1;
     let petSpeechTimer = null;
     let dailyTargets = { intake: "", protein: "", height: "", water: "" };
+    // 表单种子基线：保存目标时用于检测另一窗口是否改写过持久化值
+    let targetsFormBase = "";
     let chartRange = 30;
     let chartView = "line";
 
@@ -2363,6 +2365,7 @@
       targetProteinInput.value = dailyTargets.protein === "" ? "" : dailyTargets.protein;
       heightInput.value = dailyTargets.height === "" ? "" : dailyTargets.height;
       targetWaterInput.value = dailyTargets.water === "" ? "" : dailyTargets.water;
+      targetsFormBase = JSON.stringify(dailyTargets);
     }
 
     function writeTargets(targets) {
@@ -2390,6 +2393,13 @@
     }
 
     function restoreFullBackup(backup) {
+      // 恢复与普通写入共享同一互斥边界：锁内完成“读取旧状态 → 建 journal → 写新状态 →
+      // 成功清日志/失败回滚”全流程，回滚才不会抹掉并发窗口已成功保存的数据
+      return requestExclusiveLock(DATA_WRITE_LOCK, () => runRestoreCycle(backup));
+    }
+
+    function runRestoreCycle(backup) {
+      if (!ensureNoStaleRestoreJournal()) return false;
       if (!backup || !Array.isArray(backup.records)) return false;
       if (backup.schemaVersion !== undefined && backup.schemaVersion !== 1) return false;
       const recordsSnapshot = new Map(recordsByDate);
@@ -2454,6 +2464,13 @@
     }
 
     function recoverRestoreJournal() {
+      // 恢复日志的读取、三键恢复、日志删除与 UI 重载在同一互斥事务内完成；
+      // 已在锁内（如保存路径的遗留日志防护）时直接执行，避免自我等待
+      if (dataWriteLockHeld) return runJournalRecovery();
+      return requestExclusiveLock(DATA_WRITE_LOCK, () => runJournalRecovery());
+    }
+
+    function runJournalRecovery() {
       const raw = storageGet(RESTORE_JOURNAL_KEY);
       if (!raw) {
         restoreRecoveryPending = false;
@@ -2490,10 +2507,21 @@
 
     function ensureRestoreRecovery() {
       if (!restoreRecoveryPending) return true;
-      if (recoverRestoreJournal()) return true;
-      showToast("存在未完成的恢复日志，已暂停新的保存操作。请勿清除站点数据，刷新后会自动重试恢复。", "error");
-      renderStorageStatus();
-      return false;
+      const recovered = recoverRestoreJournal();
+      if (recovered === true) return true;
+      if (recovered === false) {
+        showToast("存在未完成的恢复日志，已暂停新的保存操作。请勿清除站点数据，刷新后会自动重试恢复。", "error");
+        renderStorageStatus();
+        return false;
+      }
+      // 锁路径下恢复是异步事务：把最终结果转述给可等待的调用方
+      return recovered.then((ok) => {
+        if (!ok) {
+          showToast("存在未完成的恢复日志，已暂停新的保存操作。请勿清除站点数据，刷新后会自动重试恢复。", "error");
+          renderStorageStatus();
+        }
+        return ok;
+      });
     }
 
     function setMessage(element, text, type) {
@@ -2508,7 +2536,7 @@
     }
 
     function storageSet(key, value) {
-      if (restoreRecoveryPending && !ensureRestoreRecovery()) return false;
+      if (restoreRecoveryPending && ensureRestoreRecovery() !== true) return false;
       if (storageUnavailable) return "memory";
       try { localStorage.setItem(key, value); return true; }
       catch (error) {
@@ -2517,7 +2545,100 @@
       }
     }
 
+    // 变更前重读最新持久化记录，按日期对齐内存快照：同 origin 下另一标签页可能已改写 storage，
+    // 直接写回会用陈旧快照静默覆盖外部的新增/删除。内存独有日期视为已被其他窗口删除
+    // （每次保存/回滚后内存与存储保持一致的既有不变量，使该判定成立）。
+    // storage 内容无法解析或含无效数据时跳过合并，保留损坏恢复流程的既有语义。
+    function syncRecordsWithStorage() {
+      if (corruptRecordsRaw) return;
+      const raw = storageGet(STORAGE_KEY);
+      if (raw === null) return;
+      let parsed;
+      try {
+        parsed = JSON.parse(raw);
+      } catch (error) {
+        return;
+      }
+      if (!Array.isArray(parsed)) return;
+      const fresh = new Map();
+      let hasInvalid = false;
+      parsed.forEach((entry) => {
+        const normalized = normalizeRecord(entry);
+        if (!normalized || fresh.has(normalized.date)) {
+          hasInvalid = true;
+          return;
+        }
+        fresh.set(normalized.date, normalized);
+      });
+      if (hasInvalid) return;
+      const unchanged = fresh.size === recordsByDate.size && Array.from(fresh).every(([date, record]) => {
+        const current = recordsByDate.get(date);
+        return current && JSON.stringify(current) === JSON.stringify(record);
+      });
+      if (unchanged) return;
+      recordsByDate.clear();
+      fresh.forEach((record, date) => recordsByDate.set(date, record));
+    }
+
+    // 单一 origin 级写入锁：records/targets 变更、完整恢复与日志恢复共享同一互斥边界，
+    // 保证同 origin 下所有持久化状态变更按一个明确顺序发生
+    const DATA_WRITE_LOCK = "nutriflow-data-v1-write";
+    let dataWriteLockHeld = false;
+
+    // Web Locks 仅在 secure context 提供（GitHub Pages 的 HTTPS 属目标场景）；
+    // 不支持的环境退回非互斥的同步路径，file:// 本就不纳入跨窗口一致性承诺。
+    function requestExclusiveLock(lockName, runLocked) {
+      const runExclusive = () => {
+        dataWriteLockHeld = true;
+        try {
+          return runLocked();
+        } finally {
+          dataWriteLockHeld = false;
+        }
+      };
+      if (typeof navigator === "undefined" || !navigator.locks || typeof navigator.locks.request !== "function") {
+        return runExclusive();
+      }
+      return navigator.locks.request(lockName, runExclusive);
+    }
+
+    // 跨窗口遗留日志防护：storage 中存在未消费恢复日志时，先在当前锁内完成恢复，
+    // 让本次变更落在恢复后的状态上，否则稍后的日志恢复会覆盖本次写入
+    function ensureNoStaleRestoreJournal() {
+      if (restoreRecoveryPending) return ensureRestoreRecovery();
+      if (storageGet(RESTORE_JOURNAL_KEY) === null) return true;
+      // 日志存在但本页尚未进入恢复待定态：直接完成恢复，让本次变更落在恢复后的状态上
+      return recoverRestoreJournal();
+    }
+
+    // 主题切换事务：gate（消费遗留日志）→ 基于恢复后的主题计算 toggle → 持久化。
+    // 抽成函数以便回归测试覆盖；gate 阻止时由 renderStorageStatus 呈现恢复待定横幅
+    function persistThemeToggle() {
+      return requestExclusiveLock(DATA_WRITE_LOCK, () => {
+        if (!ensureNoStaleRestoreJournal()) {
+          renderStorageStatus();
+          return false;
+        }
+        const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+        const next = isDark ? "light" : "dark";
+        applyTheme(next);
+        const saved = storageSet(THEME_KEY, next) === true;
+        if (!saved) {
+          showToast("主题已切换，但当前浏览器无法保存偏好。", "error");
+        }
+        return saved;
+      });
+    }
+
     function applyRecordMutationAndSave(mutate) {
+      // 锁内完成“重读最新 → 应用本次操作 → 保存/回滚”整个同步循环，
+      // 使同 origin 多窗口的并发 read-modify-write 串行化，消灭同时写入的交错丢失窗口。
+      return requestExclusiveLock(DATA_WRITE_LOCK, () => runRecordMutationCycle(mutate));
+    }
+
+    function runRecordMutationCycle(mutate) {
+      if (!ensureNoStaleRestoreJournal()) return false;
+      syncRecordsWithStorage();
       const snapshot = { records: new Map(recordsByDate), selectedDate, calendarYear, calendarMonth };
       mutate();
       const saved = saveRecords();
@@ -2643,6 +2764,36 @@
         return;
       }
 
+      // targets 与 records 共享同一写入锁：重读最新持久化值再做基线比较与写入，
+      // 消灭并发保存的交错窗口。基线在进入锁之前冻结，避免锁内遗留日志恢复
+      // 刷新基线后把恢复前捕获的表单值误判为最新
+      const frozenFormBase = targetsFormBase;
+      return requestExclusiveLock(DATA_WRITE_LOCK, () => runTargetsWrite(intake, protein, height, water, frozenFormBase));
+    }
+
+    function runTargetsWrite(intake, protein, height, water, formBase) {
+      if (!ensureNoStaleRestoreJournal()) {
+        setMessage(targetMessage, "浏览器未能保存目标，请检查存储空间或权限后重试。", "error");
+        return false;
+      }
+      // 跨窗口覆盖防护：表单种子之后持久化值被外部改写过时，刷新并请用户确认，
+      // 避免把陈旧的四字段快照写到另一窗口的修改之上。
+      const persistedTargetsRaw = storageGet(TARGET_STORAGE_KEY);
+      if (persistedTargetsRaw !== null) {
+        let persistedTargetsJson = "";
+        try {
+          persistedTargetsJson = JSON.stringify(normalizeTargetsObject(JSON.parse(persistedTargetsRaw)));
+        } catch (error) {
+          persistedTargetsJson = "";
+        }
+        if (persistedTargetsJson && persistedTargetsJson !== formBase) {
+          loadTargets();
+          setMessage(targetMessage, "目标刚在另一个窗口被修改，已载入最新值，请确认后再保存。", "error");
+          render();
+          return false;
+        }
+      }
+
       const previousTargets = { ...dailyTargets };
       dailyTargets = {
         intake: intake === 0 ? "" : intake,
@@ -2662,23 +2813,26 @@
       render();
     }
 
-    function importInitialRecords() {
+    async function importInitialRecords() {
       if (location.protocol !== "http:" && location.protocol !== "https:") return;
 
       if (localStorage.getItem(SEED_KEY) === "done") return;
 
-      INITIAL_RECORDS.forEach((record) => {
-        if (!recordsByDate.has(record.date)) {
-          recordsByDate.set(record.date, {
-            date: record.date,
-            intake: record.intake,
-            weight: "",
-            protein: ""
-          });
-        }
+      // 与普通写入共享数据事务锁：拿锁并重读最新记录后，只补不存在的日期，
+      // 避免另一个首访窗口已保存真实记录时被陈旧的种子快照覆盖
+      const saved = await applyRecordMutationAndSave(() => {
+        INITIAL_RECORDS.forEach((record) => {
+          if (!recordsByDate.has(record.date)) {
+            recordsByDate.set(record.date, {
+              date: record.date,
+              intake: record.intake,
+              weight: "",
+              protein: ""
+            });
+          }
+        });
       });
-
-      if (!saveRecords()) {
+      if (!saved) {
         setMessage(formMessage, saveRecordsMessage(), "error");
         return;
       }
@@ -2786,6 +2940,27 @@
       if (!document.hidden) refreshToday();
     });
     window.addEventListener("pageshow", refreshToday);
+
+    // 跨标签页 UI 同步：另一标签页写入共享 localStorage 时，把外部变化反映到本页视图。
+    // 数据一致性由写入锁保证，本监听只负责界面同步；事件只在其他标签页触发。
+    window.addEventListener("storage", (event) => {
+      if (restoreRecoveryPending) return;
+      if (event.key === STORAGE_KEY) {
+        loadRecords();
+        render();
+      } else if (event.key === TARGET_STORAGE_KEY) {
+        try {
+          dailyTargets = normalizeTargetsObject(JSON.parse(storageGet(TARGET_STORAGE_KEY) || "{}"));
+        } catch (error) {
+          dailyTargets = { intake: "", protein: "", height: "", water: "" };
+        }
+        // 目标面板正打开编辑时不覆盖输入值，保存时的跨窗口防护会兜底
+        if (!document.querySelector(".target-settings").open) syncTargetInputs();
+        render();
+      } else if (event.key === THEME_KEY) {
+        applyTheme(storageGet(THEME_KEY) === "dark" ? "dark" : "light");
+      }
+    });
 
     function updateFormTitle() {
       formTitle.textContent = selectedDate === today ? "今天记录" : `编辑 ${formatDateText(selectedDate)}`;
@@ -3874,7 +4049,7 @@ ${viewButtons}
     }
 
 
-    document.querySelector("#recordForm").addEventListener("submit", (event) => {
+    document.querySelector("#recordForm").addEventListener("submit", async (event) => {
       event.preventDefault();
       const result = recordFromInputs();
       if (result.error) {
@@ -3882,20 +4057,22 @@ ${viewButtons}
         return;
       }
 
-      if (!applyRecordMutationAndSave(() => {
+      const form = event.currentTarget;
+      const saved = await applyRecordMutationAndSave(() => {
         recordsByDate.set(result.date, result);
         selectedDate = result.date;
         calendarYear = Number(result.date.slice(0, 4));
         calendarMonth = Number(result.date.slice(5, 7)) - 1;
-      })) {
+      });
+      if (!saved) {
         setMessage(formMessage, saveRecordsMessage(), "error");
         return;
       }
       render();
       setMessage(formMessage, `已保存 ${formatDateText(result.date)} 的记录，概览和趋势也更新了。`, "success");
-      event.currentTarget.classList.remove("save-pulse");
-      void event.currentTarget.offsetWidth;
-      event.currentTarget.classList.add("save-pulse");
+      form.classList.remove("save-pulse");
+      void form.offsetWidth;
+      form.classList.add("save-pulse");
     });
 
     document.querySelector("#clearFormBtn").addEventListener("click", () => {
@@ -3930,18 +4107,19 @@ ${viewButtons}
       setMessage(importMessage, `已识别 ${result.records.length} 条记录。预览里标着“新增”或“会覆盖”，确认无误后再点“确认录入”。`, "success");
     });
 
-    confirmImportBtn.addEventListener("click", () => {
+    confirmImportBtn.addEventListener("click", async () => {
       if (!pendingImportRecords.length) {
         setMessage(importMessage, "请先点“先预览”，确认页面识别正确。", "error");
         return;
       }
 
-      if (!applyRecordMutationAndSave(() => {
+      const saved = await applyRecordMutationAndSave(() => {
         pendingImportRecords.forEach((record) => recordsByDate.set(record.date, record));
         selectedDate = pendingImportRecords[pendingImportRecords.length - 1].date;
         calendarYear = Number(selectedDate.slice(0, 4));
         calendarMonth = Number(selectedDate.slice(5, 7)) - 1;
-      })) {
+      });
+      if (!saved) {
         setMessage(importMessage, saveRecordsMessage(), "error");
         return;
       }
@@ -3990,7 +4168,7 @@ ${viewButtons}
       const file = e.target.files[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = (ev) => {
+      reader.onload = async (ev) => {
         const content = ev.target.result;
         let records = [];
         let invalidCount = 0;
@@ -4047,7 +4225,8 @@ ${viewButtons}
           return;
         }
         if (fullBackup) {
-          if (!restoreFullBackup({ ...fullBackup, records })) {
+          const restored = await restoreFullBackup({ ...fullBackup, records });
+          if (!restored) {
             showToast(saveRecordsMessage(), "error");
             e.target.value = "";
             return;
@@ -4060,12 +4239,13 @@ ${viewButtons}
           e.target.value = "";
           return;
         }
-        if (!applyRecordMutationAndSave(() => {
+        const saved = await applyRecordMutationAndSave(() => {
           records.forEach(r => recordsByDate.set(r.date, r));
           selectedDate = records[records.length - 1].date;
           calendarYear = Number(selectedDate.slice(0, 4));
           calendarMonth = Number(selectedDate.slice(5, 7)) - 1;
-        })) {
+        });
+        if (!saved) {
           showToast(saveRecordsMessage(), "error");
           e.target.value = "";
           return;
@@ -4149,7 +4329,7 @@ ${viewButtons}
       }
     }, { passive: true });
 
-    recordsBox.addEventListener("click", (event) => {
+    recordsBox.addEventListener("click", async (event) => {
       if (event.target.closest("[data-show-more]")) {
         recordsVisibleLimit += RECORDS_PAGE;
         renderRecords(getSortedRecords());
@@ -4171,7 +4351,8 @@ ${viewButtons}
       if (deleteBtn) {
         const date = deleteBtn.dataset.delete;
         if (!confirm(`确定要删除 ${date} 的记录吗？`)) return;
-        if (!applyRecordMutationAndSave(() => recordsByDate.delete(date))) {
+        const deleted = await applyRecordMutationAndSave(() => recordsByDate.delete(date));
+        if (!deleted) {
           showToast(saveRecordsMessage(), "error");
           return;
         }
@@ -4311,33 +4492,29 @@ ${viewButtons}
     }
 
     themeToggle.addEventListener("click", () => {
-      if (!ensureRestoreRecovery()) return;
-      const isDark = document.documentElement.getAttribute("data-theme") === "dark";
-      const next = isDark ? "light" : "dark";
-      applyTheme(next);
-      const saved = storageSet(THEME_KEY, next);
-      if (saved !== true) {
-        showToast("主题已切换，但当前浏览器无法保存偏好。", "error");
-      }
+      persistThemeToggle();
     });
 
     initTheme();
 
     loadTargets();
     loadRecords();
-    recoverRestoreJournal();
-    if (corruptRecordsRaw) {
-      setMessage(formMessage, `检测到${corruptRecordsStatus}；首次保存会原样备份到 dailyDietRecordsV1CorruptBackupV1。`, "error");
-    }
-    importInitialRecords();
-    if (recordsByDate.has(today)) {
-      fillForm(recordsByDate.get(today));
-    } else {
-      dateInput.value = today;
-    }
-    todayText.textContent = `今天：${formatDateText(today)}`;
-    render();
-    scheduleTodayRefresh();
+    // 恢复日志恢复在锁路径下异步完成，且可能改写记录/目标/主题；
+    // 其后的状态初始化与首帧渲染放在恢复结束后执行，避免界面停留在恢复前状态
+    Promise.resolve(recoverRestoreJournal()).then(async () => {
+      if (corruptRecordsRaw) {
+        setMessage(formMessage, `检测到${corruptRecordsStatus}；首次保存会原样备份到 dailyDietRecordsV1CorruptBackupV1。`, "error");
+      }
+      await importInitialRecords();
+      if (recordsByDate.has(today)) {
+        fillForm(recordsByDate.get(today));
+      } else {
+        dateInput.value = today;
+      }
+      todayText.textContent = `今天：${formatDateText(today)}`;
+      render();
+      scheduleTodayRefresh();
+    });
 
   </script>
 

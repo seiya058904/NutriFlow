@@ -14,8 +14,8 @@ function firstScript(html) {
 function normalizeScript(script) {
   let text = script;
   text = text.replace(/^    const SEED_KEY = "dailyDietSeed[^"]*";.*\n(?:.*\n)*?    \];\n/gm, "");
-  text = text.replace(/^    function importInitialRecords\(\) \{[\s\S]*?\n    \}\n\n/gm, "");
-  text = text.replace(/    importInitialRecords\(\);\n/g, "");
+  text = text.replace(/^    (?:async )?function importInitialRecords\(\) \{[\s\S]*?\n    \}\n\n/gm, "");
+  text = text.replace(/^[ \t]*(?:await )?importInitialRecords\(\);\r?\n/gm, "");
   return text.split("\n").map((line) => line.trimEnd()).filter((line) => line.trim() !== "").join("\n");
 }
 
