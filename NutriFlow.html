@@ -1927,6 +1927,17 @@
       .panel-inner {
         padding: 15px;
       }
+
+      /* 移动端触控目标统一到 44px（月翻页、今天、图表控件均为高频操作） */
+      .icon-btn {
+        width: 44px;
+        height: 44px;
+      }
+
+      .today-jump,
+      .range-btn {
+        min-height: 44px;
+      }
     }
   </style>
 </head>
@@ -2898,7 +2909,6 @@
       renderCalendar();
       renderReview();
       renderTargetProgress();
-      recordsVisibleLimit = RECORDS_PAGE;
       renderRecords(sorted);
     }
 
