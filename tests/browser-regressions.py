@@ -28,7 +28,7 @@ def save(page, date):
     page.locator('#dateInput').fill(date)
     page.locator('#intakeInput').fill('100')
     page.locator('#recordForm button[type=submit]').click()
-    page.wait_for_function('(date) => JSON.parse(localStorage.getItem("dailyDietRecordsV1")).some(r => r.date === date)', arg=date)
+    page.wait_for_function('(date) => { try { return JSON.parse(localStorage.getItem("dailyDietRecordsV1")).some(r => r.date === date); } catch { return false; } }', arg=date)
 
 with sync_playwright() as p:
     browser = p.chromium.launch()
