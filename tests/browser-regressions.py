@@ -43,6 +43,7 @@ with sync_playwright() as p:
                 page.goto(f'{url}/{entry}')
             a.evaluate("localStorage.setItem('dailyDietRecordsV1', '[]')")
             a.reload(); b.reload()
+            a.locator('details.data-panel > summary').click()
             b.evaluate("""() => { window.held = false; navigator.locks.request('nutriflow-data-v1-write', () => { window.held = true; return new Promise(resolve => window.releaseWrite = resolve); }); }""")
             b.wait_for_function('window.held')
             a.locator('#importText').fill('2026-09-01,100')
