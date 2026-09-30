@@ -2318,6 +2318,7 @@
     let calendarYear = Number(today.slice(0, 4));
     let calendarMonth = Number(today.slice(5, 7)) - 1;
     let pendingImportRecords = [];
+    let importInFlight = false;
     let corruptRecordsRaw = "";
     let corruptRecordsStatus = "";
     let storageUnavailable = false;
@@ -2561,7 +2562,8 @@
     // （每次保存/回滚后内存与存储保持一致的既有不变量，使该判定成立）。
     // storage 内容无法解析或含无效数据时跳过合并，保留损坏恢复流程的既有语义。
     function syncRecordsWithStorage() {
-      if (corruptRecordsRaw) return;
+      // corruptRecordsRaw 是待备份原文，不代表当前持久层仍然损坏。
+      // 另一页修复后必须照常重读合并；原文仍由 saveRecords 在写入前保全。
       const raw = storageGet(STORAGE_KEY);
       if (raw === null) return;
       let parsed;
@@ -4118,24 +4120,37 @@ ${viewButtons}
     });
 
     confirmImportBtn.addEventListener("click", async () => {
+      if (importInFlight) return;
       if (!pendingImportRecords.length) {
         setMessage(importMessage, "请先点“先预览”，确认页面识别正确。", "error");
         return;
       }
 
-      const saved = await applyRecordMutationAndSave(() => {
-        pendingImportRecords.forEach((record) => recordsByDate.set(record.date, record));
-        selectedDate = pendingImportRecords[pendingImportRecords.length - 1].date;
-        calendarYear = Number(selectedDate.slice(0, 4));
-        calendarMonth = Number(selectedDate.slice(5, 7)) - 1;
-      });
-      if (!saved) {
-        setMessage(importMessage, saveRecordsMessage(), "error");
-        return;
+      // 预览仍可编辑；本次提交只拥有点击确认时的批次。
+      const preview = pendingImportRecords;
+      const confirmedRecords = preview.map((record) => ({ ...record }));
+      importInFlight = true;
+      confirmImportBtn.disabled = true;
+      try {
+        const saved = await applyRecordMutationAndSave(() => {
+          confirmedRecords.forEach((record) => recordsByDate.set(record.date, record));
+          selectedDate = confirmedRecords[confirmedRecords.length - 1].date;
+          calendarYear = Number(selectedDate.slice(0, 4));
+          calendarMonth = Number(selectedDate.slice(5, 7)) - 1;
+        });
+        if (!saved) {
+          setMessage(importMessage, saveRecordsMessage(), "error");
+          return;
+        }
+        render();
+        setMessage(importMessage, `已录入 ${confirmedRecords.length} 条已确认记录，日历和趋势已经一起更新。`, "success");
+        if (pendingImportRecords === preview) clearImportPreview();
+      } catch (error) {
+        setMessage(importMessage, "导入未完成，请检查浏览器存储或重试。", "error");
+      } finally {
+        importInFlight = false;
+        confirmImportBtn.disabled = false;
       }
-      render();
-      setMessage(importMessage, `已录入 ${pendingImportRecords.length} 条记录，日历和趋势已经一起更新。`, "success");
-      clearImportPreview();
     });
 
     document.querySelector("#clearImportBtn").addEventListener("click", () => {
