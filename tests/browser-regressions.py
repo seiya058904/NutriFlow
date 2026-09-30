@@ -73,6 +73,9 @@ with sync_playwright() as p:
             assert a.evaluate("localStorage.getItem('dailyDietRecordsV1CorruptBackupV1')") == 'broken json'
             assert a.title() and a.locator('#recordForm').is_visible()
             assert not errors, errors
+            evidence = Path('/tmp/nutriflow-browser')
+            evidence.mkdir(exist_ok=True)
+            a.screenshot(path=str(evidence / f'{entry}-{width}.png'), full_page=True)
             print(f'PASS {entry} {width}x{height}: real import controls + two-page canonical recovery; no page errors', flush=True)
             context.close()
     browser.close()
