@@ -7,7 +7,8 @@ function app(file, clock, storage = {}, contextExtras = {}) {
   const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
   const cut = script.indexOf('document.querySelector("#recordForm")');
   const values = new Map();
-  const element = () => ({ value: "", textContent: "", className: "", innerHTML: "", hidden: false, classList: { add() {}, remove() {} }, addEventListener() {}, setAttribute() {}, appendChild() {} });
+  const windowEvents = {};
+  const element = () => ({ listeners: {}, value: "", textContent: "", className: "", innerHTML: "", hidden: false, classList: { add() {}, remove() {} }, addEventListener(name, fn) { this.listeners[name] = fn; }, setAttribute() {}, appendChild() {} });
   const documentElement = {
     attribute: "light",
     getAttribute(name) { return name === "data-theme" ? this.attribute : null; },
@@ -44,7 +45,7 @@ function app(file, clock, storage = {}, contextExtras = {}) {
     RegExp,
     setTimeout() {},
     clearTimeout() {},
-    window: { setTimeout() {}, clearTimeout() {}, requestAnimationFrame(fn) { fn(); }, addEventListener() {} },
+    window: { setTimeout() {}, clearTimeout() {}, requestAnimationFrame(fn) { fn(); }, addEventListener(name, fn) { windowEvents[name] = fn; } },
     document: {
       documentElement,
       addEventListener() {},
@@ -71,13 +72,82 @@ function app(file, clock, storage = {}, contextExtras = {}) {
   Object.assign(context, contextExtras);
   vm.createContext(context);
   vm.runInContext(`${script.slice(0, cut)}; globalThis.test = { loadRecords, loadTargets, saveRecords, getSortedRecords, consecutiveRecordDays, refreshToday, makeIntakeOverview, movingAverage, groupRecordsByCalendarWeek, parseImportRows, findDuplicateDates, applyRecordMutationAndSave, recordsByDate, renderTargetProgress, metricTargetStatus, restoreFullBackup, normalizeTargetsObject, writeStorageDirect, setDailyTargets: (targets) => { dailyTargets = targets; }, getDailyTargets: () => ({ ...dailyTargets }), renderStorageStatus, getStorageUnavailable: () => storageUnavailable, writeTargets, saveTargets, storageSet, recoverRestoreJournal, ensureRestoreRecovery, importInitialRecords: typeof importInitialRecords === "function" ? importInitialRecords : undefined, persistThemeToggle, isValidRestoreJournal, getRestoreRecoveryPending: () => restoreRecoveryPending, getState: () => ({ today, selectedDate, calendarYear, calendarMonth }) };`, context);
-  return { api: context.test, storage, context };
+  const importStart = script.indexOf('confirmImportBtn.addEventListener("click"');
+  const importEnd = script.indexOf('document.querySelector("#exportBtn")', importStart);
+  vm.runInContext(script.slice(importStart, importEnd), context);
+  vm.runInContext('render = () => {}; globalThis.test.renderImportPreview = renderImportPreview; globalThis.test.clearImportPreview = clearImportPreview;', context);
+  return { api: context.test, storage, context, values, windowEvents };
 }
 
 (async () => {
 for (const file of ["NutriFlow.html", "index.html"]) {
   const raw = '[{"date":"2026-07-20","intake":1500},{"date":"bad","intake":-1}]';
   const clock = { value: "2026-07-27T12:00:00" };
+
+  const row = (date, intake = 100) => ({ date, intake, weight: "", protein: "", water: "" });
+  for (const action of ["clear", "edit", "replace", "duplicate"]) {
+    let release;
+    let lockCalls = 0;
+    const pending = app(file, clock, {}, { navigator: { locks: { request(name, fn) {
+      lockCalls++;
+      return new Promise((resolve, reject) => { release = () => { try { resolve(fn()); } catch (error) { reject(error); } }; });
+    } } } });
+    pending.api.renderImportPreview([row("2026-09-01")]);
+    const click = pending.values.get("#confirmImportBtn").listeners.click;
+    const completion = click();
+    if (action === "clear") pending.values.get("#clearImportBtn").listeners.click();
+    if (action === "edit") pending.values.get("#importText").listeners.input();
+    if (action === "replace") pending.api.renderImportPreview([row("2026-09-02", 200)]);
+    if (action === "duplicate") await click();
+    release();
+    await completion;
+    assert.deepEqual(JSON.parse(pending.storage.dailyDietRecordsV1).map(r => r.date), ["2026-09-01"], `${file}: ${action} preserves confirmed batch`);
+    assert.equal(lockCalls, 1, `${file}: one import commit`);
+    assert.equal(pending.values.get("#confirmImportBtn").disabled, false, `${file}: import unlocks`);
+    if (action === "replace") {
+      const next = click(); release(); await next;
+      assert.equal(JSON.parse(pending.storage.dailyDietRecordsV1).length, 2, `${file}: later preview survives old completion`);
+    }
+  }
+  for (const failure of ["lock", "write"]) {
+    let rejectLock = failure === "lock";
+    const pending = app(file, clock, failure === "write" ? { __throwSet: "dailyDietRecordsV1" } : {}, {
+      navigator: { locks: { request(name, fn) { return rejectLock ? Promise.reject(new Error("lock failed")) : Promise.resolve().then(fn); } } }
+    });
+    pending.api.renderImportPreview([row("2026-09-01")]);
+    const click = pending.values.get("#confirmImportBtn").listeners.click;
+    await click();
+    assert.equal(pending.storage.dailyDietRecordsV1, undefined, `${file}: ${failure} does not claim saved`);
+    assert.equal(pending.values.get("#confirmImportBtn").disabled, false);
+    assert.ok(pending.values.get("#importMessage").className.includes("error"));
+    rejectLock = false; delete pending.storage.__throwSet;
+    await click();
+    assert.equal(JSON.parse(pending.storage.dailyDietRecordsV1).length, 1, `${file}: ${failure} retry keeps preview`);
+  }
+  // A pending original backup must survive a valid replacement; failed backup prevents overwriting it.
+  const recovered = app(file, clock, { dailyDietRecordsV1: "old broken raw" });
+  recovered.api.loadRecords();
+  recovered.storage.dailyDietRecordsV1 = "[]";
+  recovered.api.loadRecords();
+  recovered.storage.__throwSet = "dailyDietRecordsV1CorruptBackupV1";
+  assert.equal(await recovered.api.applyRecordMutationAndSave(() => recovered.api.recordsByDate.set("2026-09-01", row("2026-09-01"))), false);
+  assert.equal(recovered.storage.dailyDietRecordsV1, "[]");
+  delete recovered.storage.__throwSet;
+  assert.equal(await recovered.api.applyRecordMutationAndSave(() => recovered.api.recordsByDate.set("2026-09-01", row("2026-09-01"))), true);
+  assert.equal(recovered.storage.dailyDietRecordsV1CorruptBackupV1, "old broken raw");
+  for (const initial of ["broken json", "[]"]) {
+    const shared = { dailyDietRecordsV1: initial };
+    const a = app(file, clock, shared), b = app(file, clock, shared);
+    a.api.loadRecords(); b.api.loadRecords();
+    const save = (page, date) => page.api.applyRecordMutationAndSave(() => page.api.recordsByDate.set(date, row(date)));
+    assert.equal(await save(b, "2026-09-01"), true);
+    a.windowEvents.storage({ key: "dailyDietRecordsV1" });
+    assert.equal(await save(b, "2026-09-02"), true);
+    assert.equal(await save(a, "2026-09-03"), true);
+    assert.deepEqual(JSON.parse(shared.dailyDietRecordsV1).map(r => r.date), ["2026-09-01", "2026-09-02", "2026-09-03"], `${file}: repaired storage merges latest canonical records`);
+    if (initial !== "[]") assert.equal(shared.dailyDietRecordsV1CorruptBackupV1, initial);
+  }
+
   let instance = app(file, clock, { dailyDietRecordsV1: raw });
   instance.api.loadRecords();
   assert.equal(instance.api.getSortedRecords().length, 1, `${file}: keeps valid partial record`);
