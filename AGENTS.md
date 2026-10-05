@@ -17,6 +17,8 @@ NutriFlow 是零依赖的中文单页饮食、体重与营养趋势记录工具�
 
 记录和目标保存在浏览器 `localStorage`；不得更改正常数据键名或格式，尤其是 `dailyDietRecordsV1` 与 `dailyDietTargetsV1`。记录写入、覆盖、导入和删除必须维持事务性：持久化失败不得把未保存状态渲染为已保存。导入批次内的重复日期必须拒绝整批；与既有记录同日期的覆盖仍是允许行为。处理损坏记录时保留原始备份策略，避免覆盖可恢复内容；出现第二次不同的损坏原始值时，会归档到 `dailyDietRecordsV1CorruptBackupV2` 的时间戳列表，而不是永久阻止后续保存。完整备份恢复会先写 `dailyDietRestoreJournalV1` 日志；任一持久化步骤失败时回滚已写入的 key，若回滚本身也失败则保留日志供下次启动恢复。存在未完成日志时，应用会进入恢复待处理状态，阻止新的持久化写入，直到日志恢复成功或用户处理该状态。
 
+CSV/TSV 文件以及含英文逗号或制表符的文本由 `parseImportColumns` 按日期、摄入、体重、蛋白质、饮水的固定列位置解析；保留中间与末尾空单元格，并区分空值和数值 0。无结构化分隔符的文本继续使用 `parseImportLine`。不要用通用数字抽取替代列解析，也不要改变 `readNumber` 的有限非负数值约束。
+
 ## 开发与验证
 
 没有 `package.json`、构建、Lint 或格式化工具链。可用命令包括：
@@ -25,6 +27,7 @@ NutriFlow 是零依赖的中文单页饮食、体重与营养趋势记录工具�
 - `node test-parity.js`：运行双 HTML parity 检查。
 - `node check-html-syntax.js`：检查两个 HTML 的内联 JS 语法。
 - `node check-repo-structure.js`：检查仓库结构约束。
+- `python tests/browser-regressions.py`：使用 Python Playwright 与已安装的 Chromium，在独立本机 HTTP 来源验证两个入口的桌面/窄屏、真实文件导入及跨页面持久化；浏览器验证工具不属于应用依赖。
 - `open NutriFlow.cmd`：打开可分发的单文件入口。
 - `打开每日饮食记录.cmd`：打开含开发种子数据的 `index.html`。
 
