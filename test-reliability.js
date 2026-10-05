@@ -305,6 +305,29 @@ for (const file of ["NutriFlow.html", "index.html"]) {
     assert.deepEqual({ date: rec.date, intake: rec.intake, weight: rec.weight, protein: rec.protein, water: rec.water }, sample.expected, `${file}: ${sample.name} round-trips exactly`);
   }
 
+  for (const delimiter of [",", "\t"]) {
+    for (const newline of ["\n", "\r\n"]) {
+      for (const optionals of [["", "60", "2000"], ["70", "", "2000"], ["70", "60", ""], ["", "", ""], ["0", "0", "0"], ["70.2", "60.3", "2000.75"]]) {
+        const cells = ["2026-09-10", "1500.5", ...optionals];
+        const parsed = instance.api.parseImportRows("\ufeff" + ["日期", "摄入(kcal)", "体重(kg)", "蛋白质(g)", "饮水(ml)"].join(delimiter) + newline + cells.join(delimiter), true);
+        assert.equal(parsed.errors.length, 0, `${file}: structured columns parse`);
+        const expected = { date: cells[0], intake: 1500.5, weight: optionals[0] === "" ? "" : Number(optionals[0]), protein: optionals[1] === "" ? "" : Number(optionals[1]), water: optionals[2] === "" ? "" : Number(optionals[2]) };
+        assert.deepEqual(JSON.parse(JSON.stringify(parsed.records[0])), expected, `${file}: optional column positions preserved`);
+        const persisted = app(file, clock, {});
+        persisted.api.renderImportPreview(parsed.records);
+        await persisted.values.get("#confirmImportBtn").listeners.click();
+        const reloaded = app(file, clock, persisted.storage);
+        reloaded.api.loadRecords();
+        assert.deepEqual(JSON.parse(JSON.stringify(reloaded.api.getSortedRecords())), [expected], `${file}: columns survive import and reload`);
+      }
+    }
+    for (const index of [1, 2, 3, 4]) {
+      const cells = ["2026-09-10", "1500", "70", "60", "2000"];
+      cells[index] = "-0.5";
+      assert.ok(instance.api.parseImportRows(cells.join(delimiter), true).errors.length, `${file}: negative value is rejected without losing its sign`);
+    }
+  }
+
   const adversarialSamples = [
     { name: "time ignored", text: "2026-07-20 12:30 1500 70 60 2000", expected: { intake: 1500, weight: 70, protein: 60, water: 2000 } },
     { name: "time with seconds ignored", text: "2026-07-20 12:30:45 1500", expected: { intake: 1500, weight: "", protein: "", water: "" } },
