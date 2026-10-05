@@ -2107,7 +2107,7 @@
             <button class="btn" type="button" id="exportFullJsonBtn" title="导出包含记录、目标和主题的完整备份">导出完整备份</button>
             <label class="btn secondary file-label">
               导入备份
-              <input type="file" id="fileImportInput" accept=".csv,.json">
+              <input type="file" id="fileImportInput" accept=".csv,.tsv,.json">
             </label>
           </div>
           <p class="backup-hint">完整备份包含记录、目标与主题；导入备份会替换这三类数据，恢复失败会自动回滚。</p>
@@ -3980,15 +3980,28 @@ ${viewButtons}
       return Array.from(duplicates);
     }
 
-    function parseImportRows(text) {
-      const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    function parseImportColumns(line) {
+      const columns = line.split(line.includes("\t") ? "\t" : ",").map((cell) => cell.trim().replace(/^"(.*)"$/, (_match, value) => value));
+      const dateInfo = findDateInImportLine(columns[0]);
+      const number = (index, required) => readNumber((columns[index] ?? "").replace(/\s*(千卡|大卡|卡路里|kcal|cal|公斤|千克|kg|克|g|毫升|ml)\s*$/i, ""), required);
+      return {
+        date: dateInfo.date,
+        intake: columns.length > 5 ? null : number(1, true),
+        weight: number(2, false),
+        protein: number(3, false),
+        water: number(4, false)
+      };
+    }
+
+    function parseImportRows(text, structured = false) {
+      const lines = text.replace(/^\ufeff/, "").split(/\r?\n/).filter((line) => line.trim());
       const records = [];
       const errors = [];
 
       lines.forEach((line, index) => {
         if (isImportHeaderLine(line)) return;
 
-        const result = parseImportLine(line);
+        const result = structured || /[,\t]/.test(line) ? parseImportColumns(line) : parseImportLine(line);
         const { date, intake, weight, protein, water } = result;
         const rowNumber = index + 1;
 
@@ -4221,10 +4234,7 @@ ${viewButtons}
             return;
           }
         } else {
-          const lines = content.split("\n").map(l => l.trim()).filter(l => l);
-          const startLine = lines[0].includes("日期") ? 1 : 0;
-          const text = lines.slice(startLine).join("\n");
-          const result = parseImportRows(text);
+          const result = parseImportRows(content, true);
           if (result.errors.length) {
             showToast(result.errors.slice(0, 2).join("；"), "error");
             e.target.value = "";

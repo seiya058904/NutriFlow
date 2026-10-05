@@ -60,6 +60,34 @@ with sync_playwright() as p:
             a.wait_for_function('JSON.parse(localStorage.getItem("dailyDietRecordsV1")).length === 2')
             assert dates(a) == ['2026-09-01','2026-09-02']
 
+            # Use the actual exported file, including its BOM and empty middle cells.
+            expected = [
+                {'date': '2026-09-10', 'intake': 1500.5, 'weight': '', 'protein': 60, 'water': 2000},
+                {'date': '2026-09-11', 'intake': 1500, 'weight': 70, 'protein': '', 'water': 2000},
+                {'date': '2026-09-12', 'intake': 0, 'weight': 0, 'protein': 0, 'water': ''},
+                {'date': '2026-09-13', 'intake': 1500, 'weight': '', 'protein': '', 'water': ''}
+            ]
+            a.evaluate('(records) => localStorage.setItem("dailyDietRecordsV1", JSON.stringify(records))', expected)
+            a.reload()
+            a.locator('details.data-panel > summary').click()
+            with a.expect_download() as pending:
+                a.locator('#exportBtn').click()
+            csv = Path(pending.value.path()).read_bytes()
+            assert csv.startswith(b'\xef\xbb\xbf')
+            a.evaluate('localStorage.setItem("dailyDietRecordsV1", "[]")')
+            a.reload()
+            a.locator('details.data-panel > summary').click()
+            a.locator('#fileImportInput').set_input_files({'name': 'roundtrip.csv', 'mimeType': 'text/csv', 'buffer': csv})
+            a.wait_for_function('(expected) => localStorage.getItem("dailyDietRecordsV1") === JSON.stringify(expected)', arg=expected)
+            a.reload()
+            assert a.evaluate('JSON.parse(localStorage.getItem("dailyDietRecordsV1"))') == expected
+            tsv = '\ufeff日期\t摄入(kcal)\t体重(kg)\t蛋白质(g)\t饮水(ml)\r\n2026-09-14\t1500\t\t0\t2000\r\n'
+            a.locator('details.data-panel > summary').click()
+            a.locator('#fileImportInput').set_input_files({'name': 'optional.tsv', 'mimeType': 'text/tab-separated-values', 'buffer': tsv.encode('utf-8')})
+            a.wait_for_function('JSON.parse(localStorage.getItem("dailyDietRecordsV1")).length === 5')
+            a.reload()
+            assert a.evaluate('JSON.parse(localStorage.getItem("dailyDietRecordsV1")).at(-1)') == {'date': '2026-09-14', 'intake': 1500, 'weight': '', 'protein': 0, 'water': 2000}
+
             # Both pages load damaged data. B repairs; A consumes that real event.
             a.evaluate("localStorage.setItem('dailyDietRecordsV1', 'broken json')")
             a.reload(); b.reload()
@@ -76,7 +104,7 @@ with sync_playwright() as p:
             evidence = Path('/tmp/nutriflow-browser')
             evidence.mkdir(exist_ok=True)
             a.screenshot(path=str(evidence / f'{entry}-{width}.png'), full_page=True)
-            print(f'PASS {entry} {width}x{height}: real import controls + two-page canonical recovery; no page errors', flush=True)
+            print(f'PASS {entry} {width}x{height}: exported CSV/file import/reload + TSV empty columns + two-page canonical recovery; no page errors', flush=True)
             context.close()
     browser.close()
 server.shutdown()
