@@ -1,77 +1,56 @@
+<div align="center">
+
 # NutriFlow
 
-Minimal Daily Nutrition & Weight Tracking
+**Keep track. See the trend. Own your data.**
 
-极简每日饮食、体重与营养趋势记录工具。数据只保存在当前浏览器的 `localStorage`，无需服务器、账号或安装。
+极简每日饮食、体重与营养趋势追踪。打开浏览器即可使用，无账号、无服务器、无安装流程。
 
-<img width="1536" height="1024" alt="project-nutriflow" src="https://github.com/user-attachments/assets/fd030c6c-cc89-43b7-9073-93aaf4e1446b" />
+[**Open web app ↗**](https://seiya058904.github.io/NutriFlow/) · [**Download offline HTML**](NutriFlow.html) · [Data & privacy](#privacy)
 
-## 使用方法
+![Offline-capable](https://img.shields.io/badge/use-browser%20%2F%20offline-3c9c77?style=flat-square) ![Storage](https://img.shields.io/badge/storage-localStorage-64748b?style=flat-square)
 
-### Open Web App
+<img width="700" alt="NutriFlow project artwork" src="https://github.com/user-attachments/assets/fd030c6c-cc89-43b7-9073-93aaf4e1446b" />
 
-访问在线版即可直接开始记录：
+</div>
 
-```text
-https://seiya058904.github.io/NutriFlow/
-```
+## ✨ Everyday tracking / 每天只记录重要的事
 
-在线版由 GitHub Actions 自动发布 `NutriFlow.html`，不会包含开发种子数据。
+| Record | Explore | Keep |
+| --- | --- | --- |
+| 热量、蛋白质、饮水、体重 | 日历、连续记录、7 天 / 30 天 / 全历史趋势 | CSV 导出、JSON 导入导出、完整备份 |
 
-### Download Offline Version
+- 🌗 浅色与深色主题，适合日常快速查看。
+- 📥 支持文本、CSV 与 JSON 导入，以及带预览的同日期覆盖。
+- 🛡️ 同一导入批次若出现重复日期会拒绝整批导入，避免静默数据丢失。
+- 🔄 在浏览器支持的条件下，同一来源多个窗口会同步状态；保存失败时不会伪装为成功。
 
-下载 **`NutriFlow.html`** 这一个文件，双击后用浏览器打开即可。
+## 🚀 Choose how to use it / 选择使用方式
 
-> 请不要下载仓库根目录的 `index.html`。该文件是开发/演示版，包含种子数据；正式离线版始终是 `NutriFlow.html`。
+| Online / 在线 | Offline / 离线 |
+| --- | --- |
+| 打开 [GitHub Pages](https://seiya058904.github.io/NutriFlow/) 即可开始 | 下载仓库根目录的 [`NutriFlow.html`](NutriFlow.html)，双击在浏览器打开 |
+| GitHub Actions 发布正式无种子数据版本 | 单文件，不需要 Node、后端或网络 |
 
-在线版与离线版使用不同的浏览器来源，`localStorage` 数据不会自动互通。需要迁移时，使用“导出完整备份”再在另一个入口“导入完整备份”。
+> **重要：** [`index.html`](index.html) 是带开发种子数据及 PWA 接入的演示入口，**不是**正式离线发行文件。请使用 `NutriFlow.html`。
 
-## 主要功能
+## Privacy
 
-- 记录每日热量、体重、蛋白质和饮水量
-- 日历、连续记录和趋势统计
-- 7 天、30 天及全部历史图表
-- 文本、CSV 和 JSON 数据导入
-- CSV 导出、JSON 备份、完整备份（记录 + 目标 + 主题）
-- 深色与浅色主题
+数据默认保存在**当前浏览器来源**的 `localStorage`，不会自动上传到服务器。在线站点与本地 `file://` 的存储空间彼此独立，不会自动同步；跨入口迁移应先导出**完整备份**，再在另一端导入。
 
-同一导入批次中如有重复日期，系统会拒绝整批导入并列出重复日期；与已有记录日期相同仍允许覆盖，但预览会明确标注。
+| Backup | Content |
+| --- | --- |
+| **CSV** | 每日记录，便于在表格软件中查看 |
+| **JSON** | 每日记录数组，兼容旧版格式 |
+| **Full backup** | 记录 + 目标 + 主题，适合迁移与完整恢复 |
 
-## 数据保存与隐私
+CSV 的标准字段为 `日期,摄入(kcal),体重(kg),蛋白质(g),饮水(ml)`。清除站点数据、更换设备或浏览器可能导致数据消失，建议定期导出备份。
 
-- 数据默认只存在当前浏览器本地，不上传任何服务器。
-- 清除浏览器网站数据、更换浏览器或设备后，记录可能消失。
-- 保存失败时会回滚并明确提示，不会把“未保存”显示成“已保存”。
-- 在支持的浏览器中，同一网页来源的多个窗口会同步记录与目标变更，并发保存不会覆盖其他窗口的数据。
-- 如果浏览器无法使用 `localStorage`，页面顶部会显示“只能临时使用”的警告。
-- 完整备份恢复是带恢复日志的多键操作；若回滚时存储再次失败，日志会保留并在下次打开时尝试自动恢复旧数据。存在未完成日志时，新的保存操作会被暂停，直到恢复成功，避免日志覆盖用户之后的新修改。
+存储不可用时会出现临时使用警告。完整备份恢复包含失败回滚与恢复日志保护；发生未完成的恢复时会暂停新的持久化写入，避免损坏现有内容。
 
-## 备份方法
+## 🛠️ Development / 开发
 
-- **CSV**：`导出 CSV`，可用表格软件打开。
-- **JSON**：`导出 JSON`，导出与浏览器存储一致的记录数组，兼容旧版。
-- **完整备份**：`导出完整备份`，导出包含记录、目标和主题的 JSON 对象；导入该文件会恢复这三类数据。
-
-恢复方法：点击“导入文件”，选择 `.csv` 或 `.json`。旧版 JSON 数组（仅记录）永远可以导入。
-
-### CSV 格式
-
-NutriFlow 导出的 CSV 表头为：
-
-```text
-日期,摄入(kcal),体重(kg),蛋白质(g),饮水(ml)
-```
-
-导入时支持带表头/不带表头、LF/CRLF、中文单位以及自由文本日期。
-
-## 浏览器要求
-
-- 现代浏览器即可，无需 Node.js、Python、服务器或扩展。
-- 推荐 Chrome / Edge / Firefox / Safari 的最新版本。
-
-## 开发验证
-
-仓库没有构建步骤，也没有 npm 依赖。验证命令：
+纯 HTML/CSS/JS，无 npm 依赖或打包步骤。项目提供两份产品逻辑需要保持一致的 HTML，以及针对可靠性、语法、入口结构的 Node 验证。
 
 ```bash
 node test-reliability.js
@@ -80,17 +59,13 @@ node check-html-syntax.js
 node check-repo-structure.js
 ```
 
-GitHub Actions 会在 push / PR 时自动运行以上检查。
-
-## 项目架构
-
-- `NutriFlow.html`：正式发布入口，无种子数据。
-- `index.html`：开发/演示入口，含种子数据和 PWA 接入。
-- `test-reliability.js`：核心逻辑回归测试。
-- `test-parity.js`：双 HTML 一致性检查。
-- `manifest.json`、`sw.js`：仅服务于 `index.html` 的 PWA 缓存。
-- `.github/workflows/pages.yml`：GitHub Pages 在线发行 workflow，只发布 `NutriFlow.html` 为线上 `index.html`。
+| Path | Purpose |
+| --- | --- |
+| [`NutriFlow.html`](NutriFlow.html) | 正式发行入口，无种子数据 |
+| [`index.html`](index.html) | 开发/演示入口，PWA 接入 |
+| [`test-parity.js`](test-parity.js) | 两份 HTML 的核心逻辑一致性 |
+| [`manifest.json`](manifest.json), [`sw.js`](sw.js) | 演示入口的 PWA 资源 |
 
 ## License
 
-当前仓库未声明开源 License。除非另有说明，代码版权归项目作者所有。
+仓库当前**未声明开源许可证**；公开可查看代码不等于授予任意复制、修改或再分发权利。
