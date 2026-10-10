@@ -3591,8 +3591,8 @@ ${viewButtons}
           <line x1="${pad.left}" y1="${bottom}" x2="${width - pad.right}" y2="${bottom}" stroke="var(--line)"></line>
           <line x1="${pad.left}" y1="${y((max + min) / 2)}" x2="${width - pad.right}" y2="${y((max + min) / 2)}" stroke="var(--line)" stroke-dasharray="6 8"></line>
           ${targetValue !== null && targetValue >= min && targetValue <= max ? `<line x1="${pad.left}" y1="${y(targetValue)}" x2="${width - pad.right}" y2="${y(targetValue)}" stroke="var(--red)" stroke-width="1.5" stroke-dasharray="8 4" opacity="0.7"></line>` : ""}
-          <text x="${pad.left - 10}" y="${pad.top + 5}" text-anchor="end" fill="var(--muted)" font-size="12">${roundValue(maxRaw)}</text>
-          <text x="${pad.left - 10}" y="${bottom + 4}" text-anchor="end" fill="var(--muted)" font-size="12">${roundValue(minRaw)}</text>
+          <text x="${pad.left - 10}" y="${pad.top + 5}" text-anchor="end" fill="var(--muted)" font-size="12">${roundValue(max)}</text>
+          <text x="${pad.left - 10}" y="${bottom + 4}" text-anchor="end" fill="var(--muted)" font-size="12">${roundValue(min)}</text>
           ${area ? `<path d="${area}" fill="url(#${fillId})"></path>` : ""}
           <path d="${dailyPath}" fill="none" stroke="${color}" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"></path>
           ${averagePath ? `<path d="${averagePath}" fill="none" stroke="${averageColor}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"></path>` : ""}
@@ -3937,11 +3937,11 @@ ${viewButtons}
     function readImportNumbers(text) {
       return String(text ?? "")
         .replace(/\b\d{1,2}:\d{2}(?::\d{2})?\b/g, " ")
-        .replace(/\d+(?:\.\d+)?%/g, " ")
+        .replace(/[+-]?(?:\d+(?:\.\d+)?|\.\d+)%/g, " ")
         .replace(/[：:=]/g, " ")
         .replace(/[，,;；|\t]/g, " ")
         .replace(/(千卡|大卡|卡路里|kcal|cal|公斤|千克|kg|克|g)/gi, " ")
-        .match(/\d+(?:\.\d+)?/g) || [];
+        .match(/[+-]?(?:\d+(?:\.\d+)?|\.\d+)/g) || [];
     }
 
     function parseImportLine(line) {
@@ -3952,7 +3952,7 @@ ${viewButtons}
       const beforeDate = line.slice(0, dateInfo.index);
       const numbers = readImportNumbers(afterDate);
       const fallbackNumbers = numbers.length ? numbers : readImportNumbers(beforeDate);
-      const labeledIntake = afterDate.match(/(\d+(?:\.\d+)?)\s*(?:大卡|千卡|卡路里|kcal|cal)/i);
+      const labeledIntake = afterDate.match(/([+-]?(?:\d+(?:\.\d+)?|\.\d+))\s*(?:大卡|千卡|卡路里|kcal|cal)/i);
       if (labeledIntake) {
         const afterIntake = afterDate.slice(labeledIntake.index + labeledIntake[0].length);
         const labeledNumbers = readImportNumbers(afterIntake);
