@@ -3944,12 +3944,21 @@ ${viewButtons}
         .match(/[+-]?(?:\d+(?:\.\d+)?|\.\d+)/g) || [];
     }
 
+    function hasMalformedNumericToken(text) {
+      return /[0-9][eE][+-]?[0-9]/.test(text) || /[0-9]*\.[0-9]*\.[0-9]/.test(text);
+    }
+
     function parseImportLine(line) {
       const dateInfo = findDateInImportLine(line);
       if (!dateInfo.date) return { date: "", intake: null, weight: "", protein: "", water: "" };
 
       const afterDate = line.slice(dateInfo.index + dateInfo.raw.length);
       const beforeDate = line.slice(0, dateInfo.index);
+      // F-2: a malformed whole token (scientific notation, multiple decimal
+      // points) must reject the line instead of being partially extracted.
+      if (hasMalformedNumericToken(`${beforeDate} ${afterDate}`)) {
+        return { date: dateInfo.date, intake: null, weight: null, protein: null, water: null };
+      }
       const numbers = readImportNumbers(afterDate);
       const fallbackNumbers = numbers.length ? numbers : readImportNumbers(beforeDate);
       const labeledIntake = afterDate.match(/([+-]?(?:\d+(?:\.\d+)?|\.\d+))\s*(?:大卡|千卡|卡路里|kcal|cal)/i);

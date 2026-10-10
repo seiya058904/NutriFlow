@@ -921,6 +921,25 @@ for (const file of ["NutriFlow.html", "index.html"]) {
   assert.equal(savedAfterImport.length, 2, `${file}: confirmed import persists both records`);
   assert.equal(savedAfterImport.find((r) => r.date === "2026-10-03").protein, 0.5, `${file}: persisted protein keeps full precision`);
 
+  // F-2：非法整体 token（科学计数法、多小数点）不得被部分截取后落库，
+  // 必须整行拒绝、报错并保留旧存储（不增新数字语法）。
+  for (const malformed of [
+    "2026-10-03 1e3大卡 70kg 60g 2000ml",
+    "2026-10-03 1.2.3大卡 70kg 60g 2000ml",
+    "2026-10-03 1500大卡 70kg 1e3g 2000ml",
+    "2026-10-03 1500 1.2.3 60g 2000ml",
+    "2026-10-03 1500大卡 70kg 60g 2E3ml",
+  ]) {
+    const parsed = parseRows(malformed);
+    assert.deepEqual(parsed.records, [], `${file}: malformed whole token must reject the line (${malformed})`);
+    assert.ok(parsed.errors.length >= 1, `${file}: malformed whole token must surface an error (${malformed})`);
+  }
+  const malformedFlow = app(file, clock, { dailyDietRecordsV1: JSON.stringify(seedRecords) });
+  malformedFlow.api.loadRecords();
+  const malformedPreview = malformedFlow.api.parseImportRows("2026-10-03 1e3大卡 70kg 60g 2000ml");
+  assert.deepEqual(malformedPreview.records, [], `${file}: malformed preview yields no records`);
+  assert.equal(malformedFlow.storage.dailyDietRecordsV1, JSON.stringify(seedRecords), `${file}: malformed preview leaves the sentinel record untouched`);
+
   // NF-02：SVG 顶/底轴标签必须反映绘图实际采用的扩展上下界，
   // 且精度足以区分两个不同边界（kg 最小留白 0.5）。
   const chartInstance = app(file, clock);
