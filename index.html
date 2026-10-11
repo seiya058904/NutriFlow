@@ -3944,16 +3944,32 @@ ${viewButtons}
         .match(/[+-]?(?:\d+(?:\.\d+)?|\.\d+)/g) || [];
     }
 
-    // F-2/NF-01：数字 token 完整性校验（白名单而非黑名单）。
-    // 扫描所有"类数字"连续片段（数字/点/e/E/正负号），每个含数字的
-    // 片段必须整体是合法的普通十进制数（可选单个正负号 + 整数或
-    // 小数，或前导点小数）。科学计数法（1e3、2E3）、多小数点
-    // （1.2.3）、悬挂点（1.）、残缺指数（1e、1e.3）、重复符号
-    // （-+1500）以及字母粘连片段一律视为非法整体 token，整行拒绝，
-    // 避免解析器从片段中间截取出一半数字后落库。
+    // F-2/F-2b/NF-01：数字 token 完整性校验（数字-字母词法边界白名单）。
+    // 1) 每段由数字/点/正负号构成的连续片段必须整体是合法普通十进制数
+    //    （可选单个正负号；整数、小数或前导点小数）。多小数点（1.2.3）、
+    //    悬挂点（1.）、重复符号（-+1500）一律整行拒绝。
+    // 2) 数字与英文字母的词法边界：
+    //    - 数字后紧跟 e/E（1e3、2E3ml、1e、1e.3）视作科学计数法或残缺
+    //      指数，整行拒绝；
+    //    - 数字后紧跟其他字母、且字母之后仍是数字（2x500）属于未定义的
+    //      数值表达式，不得静默截取一半，整行拒绝；
+    //    - 数字后紧跟字母、之后不再是数字（70kg、2000ml 等单位词缀），或
+    //      字母在数字之前（intake1500、coffee2000ml 的英文词干），视为
+    //      单位/词缀，保持与历史基线兼容。
     function hasMalformedNumericToken(text) {
-      const runs = String(text ?? "").match(/[0-9.eE+-]+/g) || [];
-      return runs.some((run) => /\d/.test(run) && !/^[+-]?(?:\d+(?:\.\d+)?|\.\d+)$/.test(run));
+      const source = String(text ?? "");
+      const runs = source.match(/[0-9.+-]+/g) || [];
+      for (const run of runs) {
+        if (/\d/.test(run) && !/^[+-]?(?:\d+(?:\.\d+)?|\.\d+)$/.test(run)) return true;
+      }
+      const tailPattern = /\d[a-zA-Z]+/g;
+      let tail = tailPattern.exec(source);
+      while (tail !== null) {
+        if (/^[eE]/.test(tail[0].slice(1))) return true;
+        if (/\d/.test(source[tailPattern.lastIndex] ?? "")) return true;
+        tail = tailPattern.exec(source);
+      }
+      return false;
     }
 
     function parseImportLine(line) {

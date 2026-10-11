@@ -959,11 +959,34 @@ for (const file of ["NutriFlow.html", "index.html"]) {
     "2026-10-03 1e.3大卡 70kg 60g 2000ml",
     "2026-10-03 1e大卡 70kg 60g 2000ml",
     "2026-10-03 -+1500大卡 70kg 60g 2000ml",
+    "2026-10-03 2x500大卡 70kg 60g 2000ml",
   ]) {
     const leakedPreview = leakedFlow.api.parseImportRows(leaked);
     assert.deepEqual(leakedPreview.records, [], `${file}: leaked-token preview yields no records (${leaked})`);
   }
   assert.equal(leakedFlow.storage.dailyDietRecordsV1, JSON.stringify(seedRecords), `${file}: leaked-token previews leave the sentinel record untouched`);
+
+  // F-2b（第三轮审计）：数字-字母词法边界。
+  // 兼容契约：字母词干/词缀紧贴数字（intake1500 / coffee2000ml / intake:1500）
+  // 必须与原始基线一致继续解析；未定义表达式（2x500）不得静默截取为 500。
+  assert.deepEqual(
+    parseRows("2026-10-03 intake1500 70kg 60g 2000ml").records,
+    [{ date: "2026-10-03", intake: 1500, weight: 70, protein: 60, water: 2000 }],
+    `${file}: word-stem glued to digits keeps baseline compatibility (intake1500)`
+  );
+  assert.deepEqual(
+    parseRows("2026-10-03 1500大卡 70kg 60g coffee2000ml").records,
+    [{ date: "2026-10-03", intake: 1500, weight: 70, protein: 60, water: 2000 }],
+    `${file}: word-suffix letters after digits keep baseline compatibility (coffee2000ml)`
+  );
+  assert.deepEqual(
+    parseRows("2026-10-03 intake:1500 70kg 60g 2000ml").records,
+    [{ date: "2026-10-03", intake: 1500, weight: 70, protein: 60, water: 2000 }],
+    `${file}: label colon form keeps baseline compatibility (intake:1500)`
+  );
+  const crossed = parseRows("2026-10-03 2x500大卡 70kg 60g 2000ml");
+  assert.deepEqual(crossed.records, [], `${file}: digit-letter-digit expression (2x500) must reject the line`);
+  assert.ok(crossed.errors.length >= 1, `${file}: digit-letter-digit expression must surface an error`);
 
   // NF-02：SVG 顶/底轴标签必须反映绘图实际采用的扩展上下界，
   // 且精度足以区分两个不同边界（kg 最小留白 0.5）。
