@@ -966,11 +966,18 @@ for (const file of ["NutriFlow.html", "index.html"]) {
     "2026-10-03 －1500大卡 70kg 60g 2000ml",
     "2026-10-03 2×500大卡 70kg 60g 2000ml",
     "2026-10-03 2*500大卡 70kg 60g 2000ml",
+    "2026-10-03 −.5g 70kg 60g 2000ml",
+    "2026-10-03 －.5大卡 70kg 60g 2000ml",
+    "2026-10-03 −+1500大卡 70kg 60g 2000ml",
   ]) {
     const leakedPreview = leakedFlow.api.parseImportRows(leaked);
     assert.deepEqual(leakedPreview.records, [], `${file}: leaked-token preview yields no records (${leaked})`);
   }
   assert.equal(leakedFlow.storage.dailyDietRecordsV1, JSON.stringify(seedRecords), `${file}: leaked-token previews leave the sentinel record untouched`);
+  // Preview 不可确认：空预览点击确认后旧存储必须原样保留。
+  leakedFlow.api.renderImportPreview([]);
+  await leakedFlow.values.get("#confirmImportBtn").listeners.click();
+  assert.equal(leakedFlow.storage.dailyDietRecordsV1, JSON.stringify(seedRecords), `${file}: confirming an empty preview leaves the sentinel record untouched`);
 
   // F-2b（第三轮审计）：数字-字母词法边界。
   // 兼容契约：字母词干/词缀紧贴数字（intake1500 / coffee2000ml / intake:1500）
@@ -1016,6 +1023,29 @@ for (const file of ["NutriFlow.html", "index.html"]) {
     assert.deepEqual(parsed.records, [], `${file}: non-ASCII numeric symbol glued to digits must reject the line (${nonAscii})`);
     assert.ok(parsed.errors.length >= 1, `${file}: non-ASCII numeric symbol must surface an error (${nonAscii})`);
   }
+  // F-2b 第六轮（集中收敛）：系统化矩阵——符号 × 数值形态 × 位置。
+  // 非 ASCII 类数字符号以任何位置/组合粘连数值片段（含符号链 −+、
+  // 符号+前导点 −.5）都使完整 token 非法，整行拒绝；
+  // ASCII 符号保持既有语义（+form 接受、-form 由非负校验拒绝）。
+  for (const sym of ["−", "－", "×", "*"]) {
+    for (const form of ["1500", "70.5", ".5"]) {
+      for (const glued of [`${sym}${form}`, `${form}${sym}`, `${sym}+${form}`]) {
+        const parsed = parseRows(`2026-10-03 ${glued}大卡 70kg 60g 2000ml`);
+        assert.deepEqual(parsed.records, [], `${file}: unsupported numeric symbol glue must reject the line (${glued})`);
+        assert.ok(parsed.errors.length >= 1, `${file}: unsupported numeric symbol glue must surface an error (${glued})`);
+      }
+    }
+  }
+  assert.equal(
+    parseRows("2026-10-03 +.5大卡 70kg 60g 2000ml").records[0].intake,
+    0.5,
+    `${file}: ASCII signed leading-dot decimal keeps working (contrast with Unicode minus)`
+  );
+  assert.equal(
+    parseRows("2026-10-03 +70.5大卡 70kg 60g 2000ml").records[0].intake,
+    70.5,
+    `${file}: ASCII signed decimal keeps working`
+  );
 
   // NF-02：SVG 顶/底轴标签必须反映绘图实际采用的扩展上下界，
   // 且精度足以区分两个不同边界（kg 最小留白 0.5）。
