@@ -71,7 +71,7 @@ function app(file, clock, storage = {}, contextExtras = {}) {
   };
   Object.assign(context, contextExtras);
   vm.createContext(context);
-  vm.runInContext(`${script.slice(0, cut)}; globalThis.test = { loadRecords, loadTargets, saveRecords, getSortedRecords, consecutiveRecordDays, refreshToday, makeIntakeOverview, movingAverage, groupRecordsByCalendarWeek, parseImportRows, findDuplicateDates, applyRecordMutationAndSave, recordsByDate, renderTargetProgress, metricTargetStatus, restoreFullBackup, normalizeTargetsObject, writeStorageDirect, setDailyTargets: (targets) => { dailyTargets = targets; }, getDailyTargets: () => ({ ...dailyTargets }), renderStorageStatus, getStorageUnavailable: () => storageUnavailable, writeTargets, saveTargets, storageSet, recoverRestoreJournal, ensureRestoreRecovery, importInitialRecords: typeof importInitialRecords === "function" ? importInitialRecords : undefined, persistThemeToggle, isValidRestoreJournal, getRestoreRecoveryPending: () => restoreRecoveryPending, getState: () => ({ today, selectedDate, calendarYear, calendarMonth }) };`, context);
+  vm.runInContext(`${script.slice(0, cut)}; globalThis.test = { loadRecords, loadTargets, saveRecords, getSortedRecords, consecutiveRecordDays, refreshToday, makeIntakeOverview, movingAverage, groupRecordsByCalendarWeek, parseImportRows, findDuplicateDates, applyRecordMutationAndSave, recordsByDate, renderTargetProgress, metricTargetStatus, restoreFullBackup, normalizeTargetsObject, writeStorageDirect, makeCompactChart, setDailyTargets: (targets) => { dailyTargets = targets; }, getDailyTargets: () => ({ ...dailyTargets }), renderStorageStatus, getStorageUnavailable: () => storageUnavailable, writeTargets, saveTargets, storageSet, recoverRestoreJournal, ensureRestoreRecovery, importInitialRecords: typeof importInitialRecords === "function" ? importInitialRecords : undefined, persistThemeToggle, isValidRestoreJournal, getRestoreRecoveryPending: () => restoreRecoveryPending, getState: () => ({ today, selectedDate, calendarYear, calendarMonth }) };`, context);
   const importStart = script.indexOf('confirmImportBtn.addEventListener("click"');
   const importEnd = script.indexOf('document.querySelector("#exportBtn")', importStart);
   vm.runInContext(script.slice(importStart, importEnd), context);
@@ -874,6 +874,193 @@ for (const file of ["NutriFlow.html", "index.html"]) {
     return Math.round(group.reduce((sum, item) => sum + Number(item.value), 0) / group.length);
   });
   assert.deepEqual(partialSliding, partialNaive, `${file}: sliding-window average matches naive reference (partial vs all)`);
+
+  // NF-01：自由文本两条解析分支都必须先识别完整带符号/前导点数值 token，
+  // 再交给既有 readNumber 的有限非负校验；不能先截掉小数点或负号。
+  const importParser = app(file, clock);
+  const parseRows = (text) => importParser.api.parseImportRows(text);
+  assert.equal(parseRows("2026-10-03 1500大卡 70kg .5g 2000ml").records[0].protein, 0.5, `${file}: leading-dot decimal must not lose its dot`);
+  assert.equal(parseRows("2026-10-03 1500大卡 70kg 0.5g 2000ml").records[0].protein, 0.5, `${file}: full decimal keeps working`);
+  assert.equal(parseRows("2026-10-03 +1500大卡 70kg 60g 2000ml").records[0].intake, 1500, `${file}: explicit plus sign keeps the value`);
+  for (const negative of [
+    "2026-10-03 -1500大卡 70kg 60g 2000ml",
+    "2026-10-03 -1500 70kg 60g 2000ml",
+    "2026-10-03 1500大卡 -70kg 60g 2000ml",
+    "2026-10-03 1500大卡 70kg -.5g 2000ml",
+    "2026-10-03 1500大卡 70kg 60g -2000ml",
+  ]) {
+    const parsed = parseRows(negative);
+    assert.deepEqual(parsed.records, [], `${file}: negative token must reject the line (${negative})`);
+    assert.ok(parsed.errors.length >= 1, `${file}: negative token must surface an error (${negative})`);
+  }
+  const csvNegative = parseRows("2026-10-03,-1500,70,60,2000");
+  assert.deepEqual(csvNegative.records, [], `${file}: CSV negative intake must be rejected`);
+  assert.ok(csvNegative.errors.length >= 1, `${file}: CSV negative intake must surface an error`);
+  assert.deepEqual(
+    parseRows("2026-10-03,1500,70,,2000").records,
+    [{ date: "2026-10-03", intake: 1500, weight: 70, protein: "", water: 2000 }],
+    `${file}: CSV empty middle column stays empty and keeps later columns aligned`
+  );
+  assert.deepEqual(
+    parseRows("2026-10-03,0,.5,\"0.7\",0").records,
+    [{ date: "2026-10-03", intake: 0, weight: 0.5, protein: 0.7, water: 0 }],
+    `${file}: zero, leading-dot decimals and quoted fields survive CSV`
+  );
+  // Preview→Confirm→存储 哨兵链路：负数被拒后既有记录不变；有效自由文本全链路落库。
+  const seedRecords = [{ date: "2026-09-01", intake: 100, weight: "", protein: "", water: "" }];
+  const flow = app(file, clock, { dailyDietRecordsV1: JSON.stringify(seedRecords) });
+  flow.api.loadRecords();
+  const negativePreview = flow.api.parseImportRows("2026-10-03 -1500大卡 70kg 60g 2000ml");
+  assert.deepEqual(negativePreview.records, [], `${file}: negative preview yields no records`);
+  assert.equal(flow.storage.dailyDietRecordsV1, JSON.stringify(seedRecords), `${file}: rejected import leaves the sentinel record untouched`);
+  const okPreview = flow.api.parseImportRows("2026-10-03 1500大卡 70kg .5g 2000ml");
+  assert.equal(okPreview.records.length, 1, `${file}: valid free text parses to one record`);
+  flow.api.renderImportPreview(okPreview.records);
+  await flow.values.get("#confirmImportBtn").listeners.click();
+  const savedAfterImport = JSON.parse(flow.storage.dailyDietRecordsV1);
+  assert.equal(savedAfterImport.length, 2, `${file}: confirmed import persists both records`);
+  assert.equal(savedAfterImport.find((r) => r.date === "2026-10-03").protein, 0.5, `${file}: persisted protein keeps full precision`);
+
+  // F-2：非法整体 token（科学计数法、多小数点）不得被部分截取后落库，
+  // 必须整行拒绝、报错并保留旧存储（不增新数字语法）。
+  for (const malformed of [
+    "2026-10-03 1e3大卡 70kg 60g 2000ml",
+    "2026-10-03 1.e3大卡 70kg 60g 2000ml",
+    "2026-10-03 1.2.3大卡 70kg 60g 2000ml",
+    "2026-10-03 1500大卡 70kg 1e3g 2000ml",
+    "2026-10-03 1500 1.2.3 60g 2000ml",
+    "2026-10-03 1500大卡 70kg 60g 2E3ml",
+  ]) {
+    const parsed = parseRows(malformed);
+    assert.deepEqual(parsed.records, [], `${file}: malformed whole token must reject the line (${malformed})`);
+    assert.ok(parsed.errors.length >= 1, `${file}: malformed whole token must surface an error (${malformed})`);
+  }
+  const malformedFlow = app(file, clock, { dailyDietRecordsV1: JSON.stringify(seedRecords) });
+  malformedFlow.api.loadRecords();
+  const malformedPreview = malformedFlow.api.parseImportRows("2026-10-03 1e3大卡 70kg 60g 2000ml");
+  assert.deepEqual(malformedPreview.records, [], `${file}: malformed preview yields no records`);
+  assert.equal(malformedFlow.storage.dailyDietRecordsV1, JSON.stringify(seedRecords), `${file}: malformed preview leaves the sentinel record untouched`);
+
+  // F-2 返修（第二轮审计）：token 完整性校验后的漏网反例——
+  // 1e.3 被.3 部分截取、1e 被截成 1、-+1500 被截成 +1500，
+  // 三者都必须整行拒绝、报错，且不得触碰旧存储。
+  for (const leaked of [
+    "2026-10-03 1e.3大卡 70kg 60g 2000ml",
+    "2026-10-03 1e大卡 70kg 60g 2000ml",
+    "2026-10-03 -+1500大卡 70kg 60g 2000ml",
+  ]) {
+    const parsed = parseRows(leaked);
+    assert.deepEqual(parsed.records, [], `${file}: partially-extracted illegal token must reject the line (${leaked})`);
+    assert.ok(parsed.errors.length >= 1, `${file}: partially-extracted illegal token must surface an error (${leaked})`);
+  }
+  const leakedFlow = app(file, clock, { dailyDietRecordsV1: JSON.stringify(seedRecords) });
+  leakedFlow.api.loadRecords();
+  for (const leaked of [
+    "2026-10-03 1e.3大卡 70kg 60g 2000ml",
+    "2026-10-03 1e大卡 70kg 60g 2000ml",
+    "2026-10-03 -+1500大卡 70kg 60g 2000ml",
+    "2026-10-03 2x500大卡 70kg 60g 2000ml",
+    "2026-10-03 2x+500大卡 70kg 60g 2000ml",
+    "2026-10-03 2x.500大卡 70kg 60g 2000ml",
+    "2026-10-03 −1500大卡 70kg 60g 2000ml",
+    "2026-10-03 －1500大卡 70kg 60g 2000ml",
+    "2026-10-03 2×500大卡 70kg 60g 2000ml",
+    "2026-10-03 2*500大卡 70kg 60g 2000ml",
+    "2026-10-03 −.5g 70kg 60g 2000ml",
+    "2026-10-03 －.5大卡 70kg 60g 2000ml",
+    "2026-10-03 −+1500大卡 70kg 60g 2000ml",
+  ]) {
+    const leakedPreview = leakedFlow.api.parseImportRows(leaked);
+    assert.deepEqual(leakedPreview.records, [], `${file}: leaked-token preview yields no records (${leaked})`);
+  }
+  assert.equal(leakedFlow.storage.dailyDietRecordsV1, JSON.stringify(seedRecords), `${file}: leaked-token previews leave the sentinel record untouched`);
+  // Preview 不可确认：空预览点击确认后旧存储必须原样保留。
+  leakedFlow.api.renderImportPreview([]);
+  await leakedFlow.values.get("#confirmImportBtn").listeners.click();
+  assert.equal(leakedFlow.storage.dailyDietRecordsV1, JSON.stringify(seedRecords), `${file}: confirming an empty preview leaves the sentinel record untouched`);
+
+  // F-2b（第三轮审计）：数字-字母词法边界。
+  // 兼容契约：字母词干/词缀紧贴数字（intake1500 / coffee2000ml / intake:1500）
+  // 必须与原始基线一致继续解析；未定义表达式（2x500）不得静默截取为 500。
+  assert.deepEqual(
+    parseRows("2026-10-03 intake1500 70kg 60g 2000ml").records,
+    [{ date: "2026-10-03", intake: 1500, weight: 70, protein: 60, water: 2000 }],
+    `${file}: word-stem glued to digits keeps baseline compatibility (intake1500)`
+  );
+  assert.deepEqual(
+    parseRows("2026-10-03 1500大卡 70kg 60g coffee2000ml").records,
+    [{ date: "2026-10-03", intake: 1500, weight: 70, protein: 60, water: 2000 }],
+    `${file}: word-suffix letters after digits keep baseline compatibility (coffee2000ml)`
+  );
+  assert.deepEqual(
+    parseRows("2026-10-03 intake:1500 70kg 60g 2000ml").records,
+    [{ date: "2026-10-03", intake: 1500, weight: 70, protein: 60, water: 2000 }],
+    `${file}: label colon form keeps baseline compatibility (intake:1500)`
+  );
+  const crossed = parseRows("2026-10-03 2x500大卡 70kg 60g 2000ml");
+  assert.deepEqual(crossed.records, [], `${file}: digit-letter-digit expression (2x500) must reject the line`);
+  assert.ok(crossed.errors.length >= 1, `${file}: digit-letter-digit expression must surface an error`);
+  // F-2b 第四轮：字母间隙后以符号/小数点重新开段（2x+500 / 2x.500）
+  // 同属未定义表达式，不得静默截取为 500 / 0.5。
+  for (const crossedVariant of [
+    "2026-10-03 2x+500大卡 70kg 60g 2000ml",
+    "2026-10-03 2x.500大卡 70kg 60g 2000ml",
+  ]) {
+    const parsed = parseRows(crossedVariant);
+    assert.deepEqual(parsed.records, [], `${file}: letter-gap then sign/dot expression must reject the line (${crossedVariant})`);
+    assert.ok(parsed.errors.length >= 1, `${file}: letter-gap then sign/dot expression must surface an error (${crossedVariant})`);
+  }
+  // F-2b 第五轮：非 ASCII 类数字符号（Unicode 负号/全角负号/乘号/星号）
+  // 紧贴数字时属于同一完整 token 的一部分，不受支持 → 整行拒绝，
+  // 不得转成正数（−1500 → 1500）或部分截取（2×500 → 500）。
+  for (const nonAscii of [
+    "2026-10-03 −1500大卡 70kg 60g 2000ml",
+    "2026-10-03 －1500大卡 70kg 60g 2000ml",
+    "2026-10-03 2×500大卡 70kg 60g 2000ml",
+    "2026-10-03 2*500大卡 70kg 60g 2000ml",
+  ]) {
+    const parsed = parseRows(nonAscii);
+    assert.deepEqual(parsed.records, [], `${file}: non-ASCII numeric symbol glued to digits must reject the line (${nonAscii})`);
+    assert.ok(parsed.errors.length >= 1, `${file}: non-ASCII numeric symbol must surface an error (${nonAscii})`);
+  }
+  // F-2b 第六轮（集中收敛）：系统化矩阵——符号 × 数值形态 × 位置。
+  // 非 ASCII 类数字符号以任何位置/组合粘连数值片段（含符号链 −+、
+  // 符号+前导点 −.5）都使完整 token 非法，整行拒绝；
+  // ASCII 符号保持既有语义（+form 接受、-form 由非负校验拒绝）。
+  for (const sym of ["−", "－", "×", "*"]) {
+    for (const form of ["1500", "70.5", ".5"]) {
+      for (const glued of [`${sym}${form}`, `${form}${sym}`, `${sym}+${form}`]) {
+        const parsed = parseRows(`2026-10-03 ${glued}大卡 70kg 60g 2000ml`);
+        assert.deepEqual(parsed.records, [], `${file}: unsupported numeric symbol glue must reject the line (${glued})`);
+        assert.ok(parsed.errors.length >= 1, `${file}: unsupported numeric symbol glue must surface an error (${glued})`);
+      }
+    }
+  }
+  assert.equal(
+    parseRows("2026-10-03 +.5大卡 70kg 60g 2000ml").records[0].intake,
+    0.5,
+    `${file}: ASCII signed leading-dot decimal keeps working (contrast with Unicode minus)`
+  );
+  assert.equal(
+    parseRows("2026-10-03 +70.5大卡 70kg 60g 2000ml").records[0].intake,
+    70.5,
+    `${file}: ASCII signed decimal keeps working`
+  );
+
+  // NF-02：SVG 顶/底轴标签必须反映绘图实际采用的扩展上下界，
+  // 且精度足以区分两个不同边界（kg 最小留白 0.5）。
+  const chartInstance = app(file, clock);
+  const makeChart = (valueA, valueB) => chartInstance.api.makeCompactChart(
+    [{ date: "2026-10-02" }, { date: "2026-10-03" }],
+    [{ index: 0, value: valueA }, { index: 1, value: valueB }],
+    [], "#8ec5ff", "#0057d9", "kg"
+  );
+  const narrowSvg = makeChart(70, 70.1);
+  assert.ok(narrowSvg.includes(">70.6<"), `${file}: top label must show the extended upper bound 70.6`);
+  assert.ok(narrowSvg.includes(">69.5<"), `${file}: bottom label must show the extended lower bound 69.5`);
+  assert.ok(!narrowSvg.includes(">70<") && !narrowSvg.includes(">70.1<"), `${file}: raw min/max must no longer be the edge labels`);
+  const flatSvg = makeChart(70, 70);
+  assert.ok(flatSvg.includes(">70.5<") && flatSvg.includes(">69.5<"), `${file}: constant series still shows two distinct extended bounds`);
 }
 
 console.log("NutriFlow reliability regression tests passed");

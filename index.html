@@ -3591,8 +3591,8 @@ ${viewButtons}
           <line x1="${pad.left}" y1="${bottom}" x2="${width - pad.right}" y2="${bottom}" stroke="var(--line)"></line>
           <line x1="${pad.left}" y1="${y((max + min) / 2)}" x2="${width - pad.right}" y2="${y((max + min) / 2)}" stroke="var(--line)" stroke-dasharray="6 8"></line>
           ${targetValue !== null && targetValue >= min && targetValue <= max ? `<line x1="${pad.left}" y1="${y(targetValue)}" x2="${width - pad.right}" y2="${y(targetValue)}" stroke="var(--red)" stroke-width="1.5" stroke-dasharray="8 4" opacity="0.7"></line>` : ""}
-          <text x="${pad.left - 10}" y="${pad.top + 5}" text-anchor="end" fill="var(--muted)" font-size="12">${roundValue(maxRaw)}</text>
-          <text x="${pad.left - 10}" y="${bottom + 4}" text-anchor="end" fill="var(--muted)" font-size="12">${roundValue(minRaw)}</text>
+          <text x="${pad.left - 10}" y="${pad.top + 5}" text-anchor="end" fill="var(--muted)" font-size="12">${roundValue(max)}</text>
+          <text x="${pad.left - 10}" y="${bottom + 4}" text-anchor="end" fill="var(--muted)" font-size="12">${roundValue(min)}</text>
           ${area ? `<path d="${area}" fill="url(#${fillId})"></path>` : ""}
           <path d="${dailyPath}" fill="none" stroke="${color}" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"></path>
           ${averagePath ? `<path d="${averagePath}" fill="none" stroke="${averageColor}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"></path>` : ""}
@@ -3937,11 +3937,47 @@ ${viewButtons}
     function readImportNumbers(text) {
       return String(text ?? "")
         .replace(/\b\d{1,2}:\d{2}(?::\d{2})?\b/g, " ")
-        .replace(/\d+(?:\.\d+)?%/g, " ")
+        .replace(/[+-]?(?:\d+(?:\.\d+)?|\.\d+)%/g, " ")
         .replace(/[：:=]/g, " ")
         .replace(/[，,;；|\t]/g, " ")
         .replace(/(千卡|大卡|卡路里|kcal|cal|公斤|千克|kg|克|g)/gi, " ")
-        .match(/\d+(?:\.\d+)?/g) || [];
+        .match(/[+-]?(?:\d+(?:\.\d+)?|\.\d+)/g) || [];
+    }
+
+    // F-2/F-2b/NF-01：数字 token 完整性校验（数字-字母词法边界白名单）。
+    // 1) 每段由数字/点/正负号构成的连续片段必须整体是合法普通十进制数
+    //    （可选单个正负号；整数、小数或前导点小数）。多小数点（1.2.3）、
+    //    悬挂点（1.）、重复符号（-+1500）一律整行拒绝。
+    // 2) 数字与英文字母的词法边界：
+    //    - 数字后紧跟 e/E（1e3、2E3ml、1e、1e.3）视作科学计数法或残缺
+    //      指数，整行拒绝；
+    //    - 数字后紧跟其他字母、且字母之后仍以数字/符号/小数点续接
+    //      （2x500、2x+500、2x.500）属于未定义的数值表达式，不得静默
+    //      截取一半，整行拒绝；
+    //    - 数字后紧跟字母、之后不再是数字（70kg、2000ml 等单位词缀），或
+    //      字母在数字之前（intake1500、coffee2000ml 的英文词干），视为
+    //      单位/词缀，保持与历史基线兼容。
+    // 3) 非 ASCII 类数字符号（Unicode 连字符/负号 −－、全角正负号 ＋－、
+    //    乘号 ×✕✖⨯∗ 与 ASCII 星号 *）不受支持。集中收敛：它们与 ASCII
+    //    数字/点/正负号同属一个"类数字"连续片段，片段整体必须仍是合法
+    //    普通十进制数——任何非 ASCII 符号混入即破坏完整性，整行拒绝。
+    //    符号链（−+1500）、符号+前导点（−.5）、前缀/后缀/夹心
+    //    （−1500 / 1500× / 2×500）由同一条规则一次性覆盖，无需逐案例
+    //    追加黑名单。
+    function hasMalformedNumericToken(text) {
+      const source = String(text ?? "");
+      const numericishRuns = source.match(/[0-9.+\u2010-\u2015\u2212\uFF0B\uFF0D\u00D7\u2A2F\u2715\u2716\u2217*-]+/g) || [];
+      for (const run of numericishRuns) {
+        if (/\d/.test(run) && !/^[+-]?(?:\d+(?:\.\d+)?|\.\d+)$/.test(run)) return true;
+      }
+      const tailPattern = /\d[a-zA-Z]+/g;
+      let tail = tailPattern.exec(source);
+      while (tail !== null) {
+        if (/^[eE]/.test(tail[0].slice(1))) return true;
+        if (/[0-9.+-]/.test(source[tailPattern.lastIndex] ?? "")) return true;
+        tail = tailPattern.exec(source);
+      }
+      return false;
     }
 
     function parseImportLine(line) {
@@ -3950,9 +3986,14 @@ ${viewButtons}
 
       const afterDate = line.slice(dateInfo.index + dateInfo.raw.length);
       const beforeDate = line.slice(0, dateInfo.index);
+      // F-2: a malformed whole token (scientific notation, multiple decimal
+      // points) must reject the line instead of being partially extracted.
+      if (hasMalformedNumericToken(`${beforeDate} ${afterDate}`)) {
+        return { date: dateInfo.date, intake: null, weight: null, protein: null, water: null };
+      }
       const numbers = readImportNumbers(afterDate);
       const fallbackNumbers = numbers.length ? numbers : readImportNumbers(beforeDate);
-      const labeledIntake = afterDate.match(/(\d+(?:\.\d+)?)\s*(?:大卡|千卡|卡路里|kcal|cal)/i);
+      const labeledIntake = afterDate.match(/([+-]?(?:\d+(?:\.\d+)?|\.\d+))\s*(?:大卡|千卡|卡路里|kcal|cal)/i);
       if (labeledIntake) {
         const afterIntake = afterDate.slice(labeledIntake.index + labeledIntake[0].length);
         const labeledNumbers = readImportNumbers(afterIntake);
