@@ -3957,8 +3957,15 @@ ${viewButtons}
     //    - 数字后紧跟字母、之后不再是数字（70kg、2000ml 等单位词缀），或
     //      字母在数字之前（intake1500、coffee2000ml 的英文词干），视为
     //      单位/词缀，保持与历史基线兼容。
+    // 3) 非 ASCII 类数字符号（Unicode 连字符/负号 −－、全角正负号 ＋－、
+    //    乘号 ×✕✖⨯∗ 与 ASCII 星号 *）不受支持：它们紧贴数字（任一侧）
+    //    时属于同一完整 token 的一部分，token 因此不再是合法普通十进制
+    //    数 → 整行拒绝。这条边界与规则 1/2 同源：数字 token 只能由
+    //    [0-9.+-] 构成，任何其他"类数字"字符粘上数字都破坏完整性，
+    //    不得转成正数（−1500 → 1500）或部分截取（2×500 → 500）。
     function hasMalformedNumericToken(text) {
       const source = String(text ?? "");
+      if (/[\u2010-\u2015\u2212\uFF0D\uFF0B\u00D7\u2A2F\u2715\u2716\u2217*]\d|\d[\u2010-\u2015\u2212\uFF0D\uFF0B\u00D7\u2A2F\u2715\u2716\u2217*]/.test(source)) return true;
       const runs = source.match(/[0-9.+-]+/g) || [];
       for (const run of runs) {
         if (/\d/.test(run) && !/^[+-]?(?:\d+(?:\.\d+)?|\.\d+)$/.test(run)) return true;

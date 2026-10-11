@@ -962,6 +962,10 @@ for (const file of ["NutriFlow.html", "index.html"]) {
     "2026-10-03 2x500大卡 70kg 60g 2000ml",
     "2026-10-03 2x+500大卡 70kg 60g 2000ml",
     "2026-10-03 2x.500大卡 70kg 60g 2000ml",
+    "2026-10-03 −1500大卡 70kg 60g 2000ml",
+    "2026-10-03 －1500大卡 70kg 60g 2000ml",
+    "2026-10-03 2×500大卡 70kg 60g 2000ml",
+    "2026-10-03 2*500大卡 70kg 60g 2000ml",
   ]) {
     const leakedPreview = leakedFlow.api.parseImportRows(leaked);
     assert.deepEqual(leakedPreview.records, [], `${file}: leaked-token preview yields no records (${leaked})`);
@@ -998,6 +1002,19 @@ for (const file of ["NutriFlow.html", "index.html"]) {
     const parsed = parseRows(crossedVariant);
     assert.deepEqual(parsed.records, [], `${file}: letter-gap then sign/dot expression must reject the line (${crossedVariant})`);
     assert.ok(parsed.errors.length >= 1, `${file}: letter-gap then sign/dot expression must surface an error (${crossedVariant})`);
+  }
+  // F-2b 第五轮：非 ASCII 类数字符号（Unicode 负号/全角负号/乘号/星号）
+  // 紧贴数字时属于同一完整 token 的一部分，不受支持 → 整行拒绝，
+  // 不得转成正数（−1500 → 1500）或部分截取（2×500 → 500）。
+  for (const nonAscii of [
+    "2026-10-03 −1500大卡 70kg 60g 2000ml",
+    "2026-10-03 －1500大卡 70kg 60g 2000ml",
+    "2026-10-03 2×500大卡 70kg 60g 2000ml",
+    "2026-10-03 2*500大卡 70kg 60g 2000ml",
+  ]) {
+    const parsed = parseRows(nonAscii);
+    assert.deepEqual(parsed.records, [], `${file}: non-ASCII numeric symbol glued to digits must reject the line (${nonAscii})`);
+    assert.ok(parsed.errors.length >= 1, `${file}: non-ASCII numeric symbol must surface an error (${nonAscii})`);
   }
 
   // NF-02：SVG 顶/底轴标签必须反映绘图实际采用的扩展上下界，
