@@ -941,6 +941,30 @@ for (const file of ["NutriFlow.html", "index.html"]) {
   assert.deepEqual(malformedPreview.records, [], `${file}: malformed preview yields no records`);
   assert.equal(malformedFlow.storage.dailyDietRecordsV1, JSON.stringify(seedRecords), `${file}: malformed preview leaves the sentinel record untouched`);
 
+  // F-2 返修（第二轮审计）：token 完整性校验后的漏网反例——
+  // 1e.3 被.3 部分截取、1e 被截成 1、-+1500 被截成 +1500，
+  // 三者都必须整行拒绝、报错，且不得触碰旧存储。
+  for (const leaked of [
+    "2026-10-03 1e.3大卡 70kg 60g 2000ml",
+    "2026-10-03 1e大卡 70kg 60g 2000ml",
+    "2026-10-03 -+1500大卡 70kg 60g 2000ml",
+  ]) {
+    const parsed = parseRows(leaked);
+    assert.deepEqual(parsed.records, [], `${file}: partially-extracted illegal token must reject the line (${leaked})`);
+    assert.ok(parsed.errors.length >= 1, `${file}: partially-extracted illegal token must surface an error (${leaked})`);
+  }
+  const leakedFlow = app(file, clock, { dailyDietRecordsV1: JSON.stringify(seedRecords) });
+  leakedFlow.api.loadRecords();
+  for (const leaked of [
+    "2026-10-03 1e.3大卡 70kg 60g 2000ml",
+    "2026-10-03 1e大卡 70kg 60g 2000ml",
+    "2026-10-03 -+1500大卡 70kg 60g 2000ml",
+  ]) {
+    const leakedPreview = leakedFlow.api.parseImportRows(leaked);
+    assert.deepEqual(leakedPreview.records, [], `${file}: leaked-token preview yields no records (${leaked})`);
+  }
+  assert.equal(leakedFlow.storage.dailyDietRecordsV1, JSON.stringify(seedRecords), `${file}: leaked-token previews leave the sentinel record untouched`);
+
   // NF-02：SVG 顶/底轴标签必须反映绘图实际采用的扩展上下界，
   // 且精度足以区分两个不同边界（kg 最小留白 0.5）。
   const chartInstance = app(file, clock);

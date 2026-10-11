@@ -3828,8 +3828,16 @@ ${viewButtons}
         .match(/[+-]?(?:\d+(?:\.\d+)?|\.\d+)/g) || [];
     }
 
+    // F-2/NF-01：数字 token 完整性校验（白名单而非黑名单）。
+    // 扫描所有"类数字"连续片段（数字/点/e/E/正负号），每个含数字的
+    // 片段必须整体是合法的普通十进制数（可选单个正负号 + 整数或
+    // 小数，或前导点小数）。科学计数法（1e3、2E3）、多小数点
+    // （1.2.3）、悬挂点（1.）、残缺指数（1e、1e.3）、重复符号
+    // （-+1500）以及字母粘连片段一律视为非法整体 token，整行拒绝，
+    // 避免解析器从片段中间截取出一半数字后落库。
     function hasMalformedNumericToken(text) {
-      return /[0-9.][eE][+-]?[0-9]/.test(text) || /[0-9]*\.[0-9]*\.[0-9]/.test(text);
+      const runs = String(text ?? "").match(/[0-9.eE+-]+/g) || [];
+      return runs.some((run) => /\d/.test(run) && !/^[+-]?(?:\d+(?:\.\d+)?|\.\d+)$/.test(run));
     }
 
     function parseImportLine(line) {
