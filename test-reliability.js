@@ -1047,6 +1047,28 @@ for (const file of ["NutriFlow.html", "index.html"]) {
     `${file}: ASCII signed decimal keeps working`
   );
 
+  // F-2b 第七轮（NF-03）：除号 ÷ 与斜杠 / 同属类数字符号——
+  // 2÷500 / 2/500 不得把 500 部分截取为摄入值，任何位置粘连均整行拒绝。
+  for (const sym of ["÷", "/"]) {
+    for (const form of ["1500", "70.5", ".5"]) {
+      for (const glued of [`${sym}${form}`, `${form}${sym}`, `${sym}+${form}`, `2${sym}${form}`]) {
+        const parsed = parseRows(`2026-10-03 ${glued}大卡 70kg 60g 2000ml`);
+        assert.deepEqual(parsed.records, [], `${file}: division/slash glue must reject the line (${glued})`);
+        assert.ok(parsed.errors.length >= 1, `${file}: division/slash glue must surface an error (${glued})`);
+      }
+    }
+  }
+  assert.deepEqual(
+    parseRows("2026/10/03 1500大卡 70kg 60g 2000ml").records,
+    [{ date: "2026-10-03", intake: 1500, weight: 70, protein: 60, water: 2000 }],
+    `${file}: slash-separated date stays compatible (date is stripped before the integrity check)`
+  );
+  assert.deepEqual(
+    parseRows("2026-10-03 12:30 1500大卡 70kg 60g 2000ml").records,
+    [{ date: "2026-10-03", intake: 1500, weight: 70, protein: 60, water: 2000 }],
+    `${file}: time colon stays compatible (colon is not a numeric glue symbol)`
+  );
+
   // NF-02：SVG 顶/底轴标签必须反映绘图实际采用的扩展上下界，
   // 且精度足以区分两个不同边界（kg 最小留白 0.5）。
   const chartInstance = app(file, clock);

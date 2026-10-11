@@ -3842,15 +3842,17 @@ ${viewButtons}
     //      字母在数字之前（intake1500、coffee2000ml 的英文词干），视为
     //      单位/词缀，保持与历史基线兼容。
     // 3) 非 ASCII 类数字符号（Unicode 连字符/负号 −－、全角正负号 ＋－、
-    //    乘号 ×✕✖⨯∗ 与 ASCII 星号 *）不受支持。集中收敛：它们与 ASCII
-    //    数字/点/正负号同属一个"类数字"连续片段，片段整体必须仍是合法
-    //    普通十进制数——任何非 ASCII 符号混入即破坏完整性，整行拒绝。
+    //    乘号 ×✕✖⨯∗ 与 ASCII 星号 *）以及除号 ÷、斜杠 / 不受支持。
+    //    集中收敛：它们与 ASCII 数字/点/正负号同属一个"类数字"连续片段，
+    //    片段整体必须仍是合法普通十进制数——任何此类符号混入即破坏
+    //    完整性，整行拒绝。
     //    符号链（−+1500）、符号+前导点（−.5）、前缀/后缀/夹心
-    //    （−1500 / 1500× / 2×500）由同一条规则一次性覆盖，无需逐案例
-    //    追加黑名单。
+    //    （−1500 / 1500× / 2×500 / 2÷500 / 2/500）由同一条规则一次性
+    //    覆盖，无需逐案例追加黑名单。日期中的斜杠不受影响：日期在进入
+    //    本校验前已被 findDateInImportLine 剥除。
     function hasMalformedNumericToken(text) {
       const source = String(text ?? "");
-      const numericishRuns = source.match(/[0-9.+\u2010-\u2015\u2212\uFF0B\uFF0D\u00D7\u2A2F\u2715\u2716\u2217*-]+/g) || [];
+      const numericishRuns = source.match(/[0-9.+\u2010-\u2015\u2212\uFF0B\uFF0D\u00D7\u00F7\u2A2F\u2715\u2716\u2217*\/-]+/g) || [];
       for (const run of numericishRuns) {
         if (/\d/.test(run) && !/^[+-]?(?:\d+(?:\.\d+)?|\.\d+)$/.test(run)) return true;
       }
