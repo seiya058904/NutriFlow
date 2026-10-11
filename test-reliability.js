@@ -960,6 +960,8 @@ for (const file of ["NutriFlow.html", "index.html"]) {
     "2026-10-03 1e大卡 70kg 60g 2000ml",
     "2026-10-03 -+1500大卡 70kg 60g 2000ml",
     "2026-10-03 2x500大卡 70kg 60g 2000ml",
+    "2026-10-03 2x+500大卡 70kg 60g 2000ml",
+    "2026-10-03 2x.500大卡 70kg 60g 2000ml",
   ]) {
     const leakedPreview = leakedFlow.api.parseImportRows(leaked);
     assert.deepEqual(leakedPreview.records, [], `${file}: leaked-token preview yields no records (${leaked})`);
@@ -987,6 +989,16 @@ for (const file of ["NutriFlow.html", "index.html"]) {
   const crossed = parseRows("2026-10-03 2x500大卡 70kg 60g 2000ml");
   assert.deepEqual(crossed.records, [], `${file}: digit-letter-digit expression (2x500) must reject the line`);
   assert.ok(crossed.errors.length >= 1, `${file}: digit-letter-digit expression must surface an error`);
+  // F-2b 第四轮：字母间隙后以符号/小数点重新开段（2x+500 / 2x.500）
+  // 同属未定义表达式，不得静默截取为 500 / 0.5。
+  for (const crossedVariant of [
+    "2026-10-03 2x+500大卡 70kg 60g 2000ml",
+    "2026-10-03 2x.500大卡 70kg 60g 2000ml",
+  ]) {
+    const parsed = parseRows(crossedVariant);
+    assert.deepEqual(parsed.records, [], `${file}: letter-gap then sign/dot expression must reject the line (${crossedVariant})`);
+    assert.ok(parsed.errors.length >= 1, `${file}: letter-gap then sign/dot expression must surface an error (${crossedVariant})`);
+  }
 
   // NF-02：SVG 顶/底轴标签必须反映绘图实际采用的扩展上下界，
   // 且精度足以区分两个不同边界（kg 最小留白 0.5）。

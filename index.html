@@ -3951,8 +3951,9 @@ ${viewButtons}
     // 2) 数字与英文字母的词法边界：
     //    - 数字后紧跟 e/E（1e3、2E3ml、1e、1e.3）视作科学计数法或残缺
     //      指数，整行拒绝；
-    //    - 数字后紧跟其他字母、且字母之后仍是数字（2x500）属于未定义的
-    //      数值表达式，不得静默截取一半，整行拒绝；
+    //    - 数字后紧跟其他字母、且字母之后仍以数字/符号/小数点续接
+    //      （2x500、2x+500、2x.500）属于未定义的数值表达式，不得静默
+    //      截取一半，整行拒绝；
     //    - 数字后紧跟字母、之后不再是数字（70kg、2000ml 等单位词缀），或
     //      字母在数字之前（intake1500、coffee2000ml 的英文词干），视为
     //      单位/词缀，保持与历史基线兼容。
@@ -3966,7 +3967,7 @@ ${viewButtons}
       let tail = tailPattern.exec(source);
       while (tail !== null) {
         if (/^[eE]/.test(tail[0].slice(1))) return true;
-        if (/\d/.test(source[tailPattern.lastIndex] ?? "")) return true;
+        if (/[0-9.+-]/.test(source[tailPattern.lastIndex] ?? "")) return true;
         tail = tailPattern.exec(source);
       }
       return false;
