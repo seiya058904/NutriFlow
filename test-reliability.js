@@ -1069,6 +1069,20 @@ for (const file of ["NutriFlow.html", "index.html"]) {
     `${file}: time colon stays compatible (colon is not a numeric glue symbol)`
   );
 
+  for (const freeText of [
+    "2026-10-03 1500kcal 70kg 60g 2000ml.",
+    "2026-10-03 ate 2eggs 1500kcal 70kg 60g 2000ml",
+    "2026-10-03 12:30-13:00 1500kcal 70kg 60g 2000ml",
+  ]) {
+    assert.deepEqual(parseRows(freeText).records,
+      [{ date: "2026-10-03", intake: 1500, weight: 70, protein: 60, water: 2000 }],
+      `${file}: ordinary notes, time ranges and sentence punctuation remain valid (${freeText})`);
+  }
+  for (const malformed of ["1e", "1e.3", "1e3", "2E+3", "1.2.3", "1500.", "1500ml..", "2÷500", "2/500", "2x+500", "−+1500"]) {
+    assert.deepEqual(parseRows(`2026-10-03 ${malformed} 70kg 60g 2000ml`).records, [],
+      `${file}: malformed numbers cannot be mistaken for sentence punctuation (${malformed})`);
+  }
+
   // NF-02：SVG 顶/底轴标签必须反映绘图实际采用的扩展上下界，
   // 且精度足以区分两个不同边界（kg 最小留白 0.5）。
   const chartInstance = app(file, clock);
