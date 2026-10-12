@@ -94,6 +94,8 @@ with sync_playwright() as p:
             for text in [
                 '2026-10-03 1500kcal 70kg 60g 2000ml.',
                 '2026-10-03 ate 2eggs 1500kcal 70kg 60g 2000ml',
+                '2026-10-03 1500kcal ate 2eggs 70kg 60g 2000ml',
+                '2026-10-03 2000ml 60g 1500kcal 70kg',
                 '2026-10-03 12:30-13:00 1500kcal 70kg 60g 2000ml',
             ]:
                 a.locator('#importText').fill(text)
@@ -103,7 +105,21 @@ with sync_playwright() as p:
                 a.wait_for_function('JSON.parse(localStorage.getItem("dailyDietRecordsV1")).some(r => r.date === "2026-10-03")')
                 assert a.evaluate('JSON.parse(localStorage.getItem("dailyDietRecordsV1")).find(r => r.date === "2026-10-03")') == {'date': '2026-10-03', 'intake': 1500, 'weight': 70, 'protein': 60, 'water': 2000}
                 a.wait_for_function('!document.querySelector("#confirmImportBtn").disabled')
+            a.reload()
+            assert a.evaluate('JSON.parse(localStorage.getItem("dailyDietRecordsV1")).find(r => r.date === "2026-10-03")') == {'date': '2026-10-03', 'intake': 1500, 'weight': 70, 'protein': 60, 'water': 2000}
+            a.locator('details.data-panel > summary').click()
             before = a.evaluate('localStorage.getItem("dailyDietRecordsV1")')
+            for text in [
+                '2026-10-04 12:30-13:00+500 1500 70 60 2000',
+                '2026-10-04 12:30+500 1500 70 60 2000',
+                '2026-10-04 1500kcal 70kg 71kg 60g 2000ml',
+                '2026-10-04 1500kcal ate 2 eggs 60g 2000ml',
+            ]:
+                a.locator('#importText').fill(text)
+                a.locator('#importBtn').click()
+                assert 'confirm-ready' not in (a.locator('#confirmImportBtn').get_attribute('class') or '')
+                a.locator('#confirmImportBtn').click()
+                assert a.evaluate('localStorage.getItem("dailyDietRecordsV1")') == before
             for text in ['1e3', '2÷500', '2/500', '1.2.3', '1500.', '−+1500']:
                 a.locator('#importText').fill(f'2026-10-04 {text}kcal 70kg 60g 2000ml')
                 a.locator('#importBtn').click()

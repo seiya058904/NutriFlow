@@ -3934,14 +3934,42 @@ ${viewButtons}
       return { date: "", index: -1, raw: "" };
     }
 
+    function stripImportTimes(text) {
+      let malformed = false;
+      const source = String(text ?? "");
+      const stripped = source.replace(/\b\d{1,2}:\d{2}(?::\d{2})?(?:\s*-\s*\d{1,2}:\d{2}(?::\d{2})?)?\b/g, (time, index) => {
+        // A time must be a complete token. Do not turn 13:00+500 into +500.
+        const adjacent = /[0-9.:+\u2010-\u2015\u2212\uFF0B\uFF0D\u00D7\u00F7\u2A2F\u2715\u2716\u2217*\/-]/;
+        if (adjacent.test(source[index - 1] || "") || adjacent.test(source[index + time.length] || "")) malformed = true;
+        return " ";
+      });
+      return malformed ? null : stripped;
+    }
+
     function readImportNumbers(text) {
-      return String(text ?? "")
-        .replace(/\b\d{1,2}:\d{2}(?::\d{2})?\b/g, " ")
-        .replace(/[+-]?(?:\d+(?:\.\d+)?|\.\d+)%/g, " ")
-        .replace(/[：:=]/g, " ")
-        .replace(/[，,;；|\t]/g, " ")
-        .replace(/(千卡|大卡|卡路里|kcal|cal|公斤|千克|kg|克|g)/gi, " ")
-        .match(/[+-]?(?:\d+(?:\.\d+)?|\.\d+)/g) || [];
+      const source = stripImportTimes(text).replace(/[+-]?(?:\d+(?:\.\d+)?|\.\d+)%/g, " ");
+      const tokens = [];
+      let previousEnd = 0;
+      const pattern = /[+-]?(?:\d+(?:\.\d+)?|\.\d+)/g;
+      for (const match of source.matchAll(pattern)) {
+        const tail = source.slice(match.index + match[0].length);
+        const unit = tail.match(/^\s*(千卡|大卡|卡路里|kcal|cal|公斤|千克|kg|毫升|ml|克|g)(?![a-zA-Z])/i);
+        const noteWord = tail.match(/^[a-zA-Z\u4e00-\u9fff]+/);
+        const prefix = source.slice(previousEnd, match.index).replace(/[：:=，;；|]/g, " ").trim();
+        previousEnd = match.index + match[0].length + (unit?.[0].length || noteWord?.[0].length || 0);
+        // Numbers attached to note words (2eggs / 2个鸡蛋) are not columns.
+        if (!unit && noteWord) continue;
+        // Bare numeric prose (ate 2 / day2) is ambiguous. Require a unit or
+        // a known field label instead of guessing an optional nutrition value.
+        if (!unit && prefix && !/^(intake|weight|protein|water|摄入|热量|体重|蛋白质|饮水)$/i.test(prefix)) return null;
+        const name = unit?.[1].toLowerCase();
+        const field = /^(千卡|大卡|卡路里|kcal|cal)$/.test(name) ? "intake"
+          : /^(公斤|千克|kg)$/.test(name) ? "weight"
+          : /^(克|g)$/.test(name) ? "protein"
+          : /^(毫升|ml)$/.test(name) ? "water" : "";
+        tokens.push({ value: match[0], field, index: match.index });
+      }
+      return tokens;
     }
 
     // F-2/F-2b/NF-01：数字 token 完整性校验（数字-字母词法边界白名单）。
@@ -3967,7 +3995,8 @@ ${viewButtons}
     //    覆盖，无需逐案例追加黑名单。日期中的斜杠不受影响：日期在进入
     //    本校验前已被 findDateInImportLine 剥除。
     function hasMalformedNumericToken(text) {
-      const source = String(text ?? "").replace(/\b\d{1,2}:\d{2}(?::\d{2})?(?:\s*-\s*\d{1,2}:\d{2}(?::\d{2})?)?\b/g, " ");
+      const source = stripImportTimes(text);
+      if (source === null) return true;
       const numericishRuns = source.match(/[0-9.+\u2010-\u2015\u2212\uFF0B\uFF0D\u00D7\u00F7\u2A2F\u2715\u2716\u2217*\/-]+/g) || [];
       for (const run of numericishRuns) {
         if (/\d/.test(run) && !/^[+-]?(?:\d+(?:\.\d+)?|\.\d+)$/.test(run)) return true;
@@ -3992,32 +4021,33 @@ ${viewButtons}
 
       const afterDate = line.slice(dateInfo.index + dateInfo.raw.length);
       const beforeDate = line.slice(0, dateInfo.index);
-      // F-2: a malformed whole token (scientific notation, multiple decimal
-      // points) must reject the line instead of being partially extracted.
-      if (hasMalformedNumericToken(`${beforeDate} ${afterDate}`)) {
-        return { date: dateInfo.date, intake: null, weight: null, protein: null, water: null };
-      }
+      const invalid = { date: dateInfo.date, intake: null, weight: null, protein: null, water: null };
+      if (hasMalformedNumericToken(`${beforeDate} ${afterDate}`)) return invalid;
       const numbers = readImportNumbers(afterDate);
-      const fallbackNumbers = numbers.length ? numbers : readImportNumbers(beforeDate);
-      const labeledIntake = afterDate.match(/([+-]?(?:\d+(?:\.\d+)?|\.\d+))\s*(?:大卡|千卡|卡路里|kcal|cal)/i);
-      if (labeledIntake) {
-        const afterIntake = afterDate.slice(labeledIntake.index + labeledIntake[0].length);
-        const labeledNumbers = readImportNumbers(afterIntake);
-        return {
-          date: dateInfo.date,
-          intake: readNumber(labeledIntake[1], true),
-          weight: readNumber(labeledNumbers[0] ?? "", false),
-          protein: readNumber(labeledNumbers[1] ?? "", false),
-          water: readNumber(labeledNumbers[2] ?? "", false)
-        };
+      if (numbers === null) return invalid;
+      const tokens = numbers.length ? numbers : readImportNumbers(beforeDate);
+      if (tokens === null) return invalid;
+      const fields = ["intake", "weight", "protein", "water"];
+      const values = {};
+      const labeledIntake = tokens.find((token) => token.field === "intake");
+      // Units own their field regardless of order or missing optional fields.
+      for (const token of tokens.filter((token) => token.field)) {
+        if (Object.hasOwn(values, token.field)) return invalid;
+        values[token.field] = token.value;
       }
-
-      const intake = readNumber(fallbackNumbers[0] ?? "", true);
-      const weight = readNumber(fallbackNumbers[1] ?? "", false);
-      const protein = readNumber(fallbackNumbers[2] ?? "", false);
-      const water = readNumber(fallbackNumbers[3] ?? "", false);
-
-      return { date: dateInfo.date, intake, weight, protein, water };
+      // Keep historical positional rows, including bare optionals after kcal.
+      // Bare numbers before an explicit intake belong to the preceding note.
+      const positional = tokens.filter((token) => !token.field && (!labeledIntake || token.index > labeledIntake.index));
+      const unfilled = fields.filter((field) => !Object.hasOwn(values, field));
+      if (positional.length > unfilled.length) return invalid;
+      positional.forEach((token, index) => { values[unfilled[index]] = token.value; });
+      return {
+        date: dateInfo.date,
+        intake: readNumber(values.intake ?? "", true),
+        weight: readNumber(values.weight ?? "", false),
+        protein: readNumber(values.protein ?? "", false),
+        water: readNumber(values.water ?? "", false)
+      };
     }
 
     function findDuplicateDates(records) {

@@ -329,6 +329,10 @@ for (const file of ["NutriFlow.html", "index.html"]) {
   }
 
   const adversarialSamples = [
+    { name: "numeric note after intake", text: "2026-10-03 1500kcal ate 2eggs 70kg 60g 2000ml", expected: { intake: 1500, weight: 70, protein: 60, water: 2000 } },
+    { name: "units own reordered fields", text: "2026-10-03 2000ml 60g 1500kcal 70kg", expected: { intake: 1500, weight: 70, protein: 60, water: 2000 } },
+    { name: "missing weight stays empty", text: "2026-10-03 1500kcal ate 2eggs 60g 2000ml", expected: { intake: 1500, weight: "", protein: 60, water: 2000 } },
+    { name: "Chinese note after intake", text: "2026-10-03 1500大卡 吃了2个鸡蛋 70公斤 60克 2000毫升", expected: { intake: 1500, weight: 70, protein: 60, water: 2000 } },
     { name: "time ignored", text: "2026-07-20 12:30 1500 70 60 2000", expected: { intake: 1500, weight: 70, protein: 60, water: 2000 } },
     { name: "time with seconds ignored", text: "2026-07-20 12:30:45 1500", expected: { intake: 1500, weight: "", protein: "", water: "" } },
     { name: "percentage ignored", text: "2026-07-20 1500 体脂率20% 70kg", expected: { intake: 1500, weight: 70, protein: "", water: "" } },
@@ -343,6 +347,20 @@ for (const file of ["NutriFlow.html", "index.html"]) {
     assert.equal(parsed.errors.length, 0, `${file}: ${sample.name} has no errors`);
     const rec = parsed.records[0];
     assert.deepEqual({ intake: rec.intake, weight: rec.weight, protein: rec.protein, water: rec.water }, sample.expected, `${file}: ${sample.name} parses conservatively`);
+  }
+
+  for (const text of [
+    "2026-10-03 12:30-13:00+500 1500 70 60 2000",
+    "2026-10-03 12:30+500 1500 70 60 2000",
+    "2026-10-03 12:30:45.5 1500 70 60 2000",
+    "2026-10-03 1500kcal 70kg 71kg 60g 2000ml",
+    "2026-10-03 1500 70 60 2000 500",
+    "2026-10-03 1500kcal ate 2 eggs 60g 2000ml",
+    "2026-10-03 1500kcal day2 60g 2000ml",
+  ]) {
+    const parsed = instance.api.parseImportRows(text);
+    assert.ok(parsed.errors.length, `${file}: ambiguous or malformed row is rejected (${text})`);
+    assert.deepEqual(parsed.records, []);
   }
 
 
