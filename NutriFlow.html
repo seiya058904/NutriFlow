@@ -3833,8 +3833,8 @@ ${viewButtons}
     //    （可选单个正负号；整数、小数或前导点小数）。多小数点（1.2.3）、
     //    悬挂点（1.）、重复符号（-+1500）一律整行拒绝。
     // 2) 数字与英文字母的词法边界：
-    //    - 数字后紧跟 e/E（1e3、2E3ml、1e、1e.3）视作科学计数法或残缺
-    //      指数，整行拒绝；
+    //    - 单独 e/E 后缀或随后接数字/符号（1e3、2E3ml、1e、1e.3）
+    //      是科学计数法或残缺指数；完整英文备注（2eggs）不是指数。
     //    - 数字后紧跟其他字母、且字母之后仍以数字/符号/小数点续接
     //      （2x500、2x+500、2x.500）属于未定义的数值表达式，不得静默
     //      截取一半，整行拒绝；
@@ -3851,7 +3851,7 @@ ${viewButtons}
     //    覆盖，无需逐案例追加黑名单。日期中的斜杠不受影响：日期在进入
     //    本校验前已被 findDateInImportLine 剥除。
     function hasMalformedNumericToken(text) {
-      const source = String(text ?? "");
+      const source = String(text ?? "").replace(/\b\d{1,2}:\d{2}(?::\d{2})?(?:\s*-\s*\d{1,2}:\d{2}(?::\d{2})?)?\b/g, " ");
       const numericishRuns = source.match(/[0-9.+\u2010-\u2015\u2212\uFF0B\uFF0D\u00D7\u00F7\u2A2F\u2715\u2716\u2217*\/-]+/g) || [];
       for (const run of numericishRuns) {
         if (/\d/.test(run) && !/^[+-]?(?:\d+(?:\.\d+)?|\.\d+)$/.test(run)) return true;
@@ -3859,8 +3859,12 @@ ${viewButtons}
       const tailPattern = /\d[a-zA-Z]+/g;
       let tail = tailPattern.exec(source);
       while (tail !== null) {
-        if (/^[eE]/.test(tail[0].slice(1))) return true;
-        if (/[0-9.+-]/.test(source[tailPattern.lastIndex] ?? "")) return true;
+        if (/^[eE]$/.test(tail[0].slice(1))) return true;
+        const next = source[tailPattern.lastIndex] ?? "";
+        // A single period after a word/unit at a sentence boundary is punctuation;
+        // bare 1500., repeated dots and expressions remain malformed whole tokens.
+        const sentencePeriod = next === "." && /^(?:\s|$)/.test(source.slice(tailPattern.lastIndex + 1));
+        if (/[0-9.+-]/.test(next) && !sentencePeriod) return true;
         tail = tailPattern.exec(source);
       }
       return false;
