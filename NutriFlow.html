@@ -1939,6 +1939,122 @@
         min-height: 44px;
       }
     }
+
+    /* Reading hierarchy: quiet surfaces, grouped measures, distinct data actions. */
+    :root {
+      --surface-page: #f2f5f8;
+      --surface-primary: #ffffff;
+      --surface-secondary: #edf2f7;
+      --surface-elevated: #ffffff;
+      --text-primary: #182b3b;
+      --text-secondary: #4b6071;
+      --text-tertiary: #586b7c;
+      --border-subtle: #dbe3eb;
+      --radius: 16px;
+      --section-gap: 24px;
+    }
+    [data-theme="dark"] {
+      --surface-page: #111b24;
+      --surface-primary: #192632;
+      --surface-secondary: #223340;
+      --surface-elevated: #253847;
+      --text-primary: #edf4fa;
+      --text-secondary: #b6c7d4;
+      --text-tertiary: #a2b7c8;
+      --border-subtle: #344856;
+      --chart-bg: #192632;
+      --input-bg: #14212b;
+      --input-focus-bg: #1e303e;
+      --marker-ring: #192632;
+    }
+    body { font-size: 15px; line-height: 1.6; }
+    ::selection { background: var(--accent-soft); color: var(--text-primary); }
+    input, textarea { caret-color: var(--accent-deep); }
+    * { scrollbar-color: var(--border-strong) var(--surface-secondary); }
+    .app { max-width: 1320px; padding-top: 24px; }
+    .panel { box-shadow: none; backdrop-filter: none; }
+    .panel-inner { padding: 24px; }
+    .panel h2 { font-size: 20px; line-height: 1.4; margin-bottom: 20px; }
+    .app-header { padding: 12px 0 22px; border: 0; border-radius: 0; border-bottom: 1px solid var(--border-subtle); background: transparent; box-shadow: none; backdrop-filter: none; }
+    .brand-title { font-size: 26px; letter-spacing: -0.6px; }
+    .brand-cn { font-size: 15px; font-weight: 500; }
+    .header-meta { margin-top: 8px; font-size: 13px; }
+    .privacy-chip { padding-left: 0; background: transparent; }
+    .today-pill { background: transparent; border: 0; font-weight: 500; }
+    .theme-btn .theme-icon-sun { display: none; }
+    [data-theme="dark"] .theme-btn .theme-icon-sun { display: block; }
+    [data-theme="dark"] .theme-btn .theme-icon-moon { display: none; }
+    .form { gap: 16px; }
+    label { font-size: 14px; }
+    input, textarea { font-size: 16px; border-radius: 10px; }
+    .btn { border-radius: 10px; box-shadow: none; }
+    .btn, .icon-btn, .range-btn, .chip-step, .today-jump, .link-btn { min-height: 44px; }
+    .icon-btn { min-width: 44px; }
+    .target-settings > summary { min-height: 48px; }
+    .today-summary { gap: 0; padding-bottom: 22px; border-bottom: 1px solid var(--border-subtle); }
+    .summary-card { padding: 4px 16px; background: transparent; border-radius: 0; }
+    .summary-card:first-child { padding-left: 0; }
+    .summary-card + .summary-card { border-left: 1px solid var(--border-subtle); }
+    .summary-value { font-size: clamp(20px, 2.2vw, 30px); line-height: 1.4; font-variant-numeric: tabular-nums; }
+    .summary-label, .summary-note { font-size: 12px; }
+    .section-title { border: 0; padding-top: 0; margin-top: 26px; }
+    .chart-card { box-shadow: none; border-radius: 12px; }
+    .chart-head { gap: 12px; }
+    .trend-chip { background: transparent; padding: 8px 0; border-radius: 0; }
+    .trend-chip + .trend-chip { border-left: 1px solid var(--border-subtle); padding-left: 14px; }
+    .range-btn { padding: 0 10px; }
+    .stats { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; }
+    .stats-group { padding: 0; border-radius: 0; background: transparent; }
+    .stats-group:first-child { grid-column: 1 / -1; padding-bottom: 24px; border-bottom: 1px solid var(--border-subtle); }
+    .stats-group-title { color: var(--text-primary); font-size: 15px; margin-bottom: 16px; }
+    .stat-latest { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .stat-cell, .stat-cell:nth-child(even), .stat-cell:nth-child(n+3) { padding: 0 12px; border: 0; }
+    .stat-cell:first-child { padding-left: 0; }
+    .stat-cell + .stat-cell { border-left: 1px solid var(--border-subtle); }
+    .stat-cell-value { font-size: 24px; }
+    .stat-cell-unit { display: block; margin: 3px 0 0; font-size: 12px; }
+    .stat-week-grid { grid-template-columns: 1fr; gap: 20px; }
+    .stat-row { align-items: baseline; gap: 10px; padding: 10px 0; }
+    .stat-row:first-child { padding-top: 0; }
+    .stat-week-ratio, .stat-row dd { font-variant-numeric: tabular-nums; }
+    .data-panel > summary { padding: 22px 24px; font-size: 18px; }
+    .data-panel[open] > .panel-inner { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 32px; }
+    .data-group { min-width: 0; }
+    .data-group + .data-group { margin: 0; padding: 0 0 0 32px; border-top: 0; border-left: 1px solid var(--border-subtle); }
+    .data-group-title { font-size: 17px; margin-bottom: 10px; }
+    .import-help, .data-group-hint, .backup-hint { font-size: 13px; line-height: 1.75; font-weight: 400; }
+    .backup-actions .btn { flex: 1 1 100%; }
+    .backup-utility { border-top: 1px solid var(--border-subtle); padding-top: 16px; margin-top: 20px; }
+    .import-preview-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .import-preview-row > :first-child { grid-column: 1 / -1; }
+    .toast.error, .toast.success { border-left-width: 1px; }
+    .toast.error { border-color: var(--danger); }
+    .toast.success { border-color: var(--success); }
+    @media (max-width: 1050px) {
+      .stats { grid-template-columns: 1fr; }
+      .stats-group + .stats-group { padding-top: 18px; border-top: 1px solid var(--border-subtle); }
+      .stats-group:first-child { padding-bottom: 0; border-bottom: 0; }
+      .stat-latest { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 0; }
+      .stat-cell:nth-child(3) { padding-left: 0; border-left: 0; }
+      .today-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 0; }
+      .summary-card:nth-child(3) { padding-left: 0; border-left: 0; }
+      .data-panel[open] > .panel-inner { grid-template-columns: 1fr; gap: 24px; }
+      .data-group + .data-group { padding: 24px 0 0; border-left: 0; border-top: 1px solid var(--border-subtle); }
+      .backup-actions .btn { flex: 1 1 auto; }
+    }
+    @media (max-width: 620px) {
+      .app { gap: 18px; padding-top: 12px; }
+      .app-header { padding-bottom: 18px; }
+      .brand-title { font-size: 24px; flex-wrap: wrap; gap: 4px 10px; }
+      .panel-inner { padding: 18px; }
+      .panel h2 { font-size: 19px; margin-bottom: 16px; }
+      .data-panel > summary { padding: 18px; flex-wrap: wrap; }
+      .data-summary-hint { flex-basis: 85%; font-size: 12px; }
+      .summary-value { font-size: 24px; }
+      .stat-cell-value { font-size: 23px; }
+      .stat-week-grid { grid-template-columns: 1fr; }
+      .range-btn { padding: 0 9px; }
+    }
   </style>
 </head>
 <body>
@@ -2000,7 +2116,7 @@
             <button class="btn secondary" type="button" id="copyLatestBtn" title="把最近一条已有记录的数值带入当前表单">复制上次</button>
             <button class="btn quiet" type="button" id="clearFormBtn">清空输入</button>
           </div>
-          <p class="message" id="formMessage"></p>
+          <p class="message" id="formMessage" role="status"></p>
         </form>
         <div class="target-progress" id="targetProgress"></div>
         <details class="target-settings">
@@ -2029,7 +2145,7 @@
             <div class="button-row">
               <button class="btn secondary" type="button" id="saveTargetsBtn">保存目标</button>
             </div>
-            <p class="message" id="targetMessage"></p>
+            <p class="message" id="targetMessage" role="status"></p>
           </div>
           <div class="target-legend" aria-label="日历颜色说明">
             <span>日历小点：圆点热量，菱形蛋白</span>
@@ -2090,14 +2206,14 @@
         <section class="data-group" aria-label="批量导入记录">
           <h3 class="data-group-title">批量导入记录</h3>
           <p class="import-help">从表格复制后粘贴到这里。先写日期，再写摄入即可；也支持 2/12：650、2月12日 650大卡、2026.2.12，650 这类写法。体重、蛋白质和饮水可以空着。</p>
-          <textarea id="importText" placeholder="2/12：650&#10;2月13日 1000大卡&#10;2026.2.14，600"></textarea>
+          <textarea aria-label="批量导入记录文本" id="importText" placeholder="2/12：650&#10;2月13日 1000大卡&#10;2026.2.14，600"></textarea>
           <div class="button-row import-actions">
             <button class="btn" type="button" id="importBtn">先预览</button>
             <button class="btn secondary" type="button" id="confirmImportBtn">确认录入</button>
             <button class="btn quiet" type="button" id="clearImportBtn">清空导入框</button>
           </div>
           <div class="import-preview" id="importPreview"></div>
-          <p class="message" id="importMessage"></p>
+          <p class="message" id="importMessage" role="status"></p>
         </section>
         <section class="data-group" aria-label="备份与迁移">
           <h3 class="data-group-title">备份与迁移</h3>
