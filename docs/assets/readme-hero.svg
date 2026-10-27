@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 320" role="img" aria-labelledby="title desc">
+  <title id="title">A daily record and its trend</title>
+  <desc id="desc">Original illustration of four metric tiles beside a simple line chart.</desc>
+  <rect width="1200" height="320" fill="#eaf3ef"/>
+  <g transform="translate(62 54)"><rect width="300" height="212" rx="14" fill="#fffdf8" stroke="#b8d2c7" stroke-width="2"/><rect x="22" y="24" width="112" height="68" rx="8" fill="#d5e9df"/><rect x="165" y="24" width="112" height="68" rx="8" fill="#f3e3c6"/><rect x="22" y="119" width="112" height="68" rx="8" fill="#f3e3c6"/><rect x="165" y="119" width="112" height="68" rx="8" fill="#d5e9df"/><g fill="#1b3d38"><circle cx="78" cy="58" r="13"/><path d="M221 42l14 16-14 16-14-16z"/><rect x="66" y="142" width="24" height="24" rx="5"/><circle cx="221" cy="153" r="13"/></g></g>
+  <g transform="translate(405 54)"><rect width="733" height="212" rx="14" fill="#fffdf8" stroke="#b8d2c7" stroke-width="2"/><path d="M47 165h638M47 110h638M47 55h638" stroke="#d9e5df" stroke-width="2"/><path d="M59 155l101-28 102 12 101-45 105 18 100-54 105-16" fill="none" stroke="#397f6d" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><g fill="#d9ad70" stroke="#fffdf8" stroke-width="4"><circle cx="59" cy="155" r="9"/><circle cx="160" cy="127" r="9"/><circle cx="262" cy="139" r="9"/><circle cx="363" cy="94" r="9"/><circle cx="468" cy="112" r="9"/><circle cx="568" cy="58" r="9"/><circle cx="673" cy="42" r="9"/></g></g>
+</svg>
