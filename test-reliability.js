@@ -1101,6 +1101,20 @@ for (const file of ["NutriFlow.html", "index.html"]) {
       `${file}: malformed numbers cannot be mistaken for sentence punctuation (${malformed})`);
   }
 
+  // Labels retain identity even without units or a weight column.
+  for (const input of [
+    "摄入 1500 蛋白质 80 饮水 2000",
+    "饮水 2000 蛋白质 80 摄入 1500",
+    "protein 80g intake 1500kcal water 2000",
+  ]) {
+    const parsed = parseRows(`2026-10-28 ${input}`);
+    assert.deepEqual(parsed.records, [{ date: "2026-10-28", intake: 1500, weight: "", protein: 80, water: 2000 }]);
+    assert.equal(parsed.errors.length, 0);
+  }
+  for (const input of ["摄入 1500 蛋白质 80kg", "摄入 1500 饮水 2000g", "摄入 1500 蛋白质 80 蛋白质 90"]) {
+    assert.deepEqual(parseRows(`2026-10-28 ${input}`).records, [], `${file}: conflicting field identity is rejected`);
+  }
+
   // NF-02：SVG 顶/底轴标签必须反映绘图实际采用的扩展上下界，
   // 且精度足以区分两个不同边界（kg 最小留白 0.5）。
   const chartInstance = app(file, clock);

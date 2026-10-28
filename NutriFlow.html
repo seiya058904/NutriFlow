@@ -3964,10 +3964,16 @@ ${viewButtons}
         // a known field label instead of guessing an optional nutrition value.
         if (!unit && prefix && !/^(intake|weight|protein|water|摄入|热量|体重|蛋白质|饮水)$/i.test(prefix)) return null;
         const name = unit?.[1].toLowerCase();
-        const field = /^(千卡|大卡|卡路里|kcal|cal)$/.test(name) ? "intake"
+        const unitField = /^(千卡|大卡|卡路里|kcal|cal)$/.test(name) ? "intake"
           : /^(公斤|千克|kg)$/.test(name) ? "weight"
           : /^(克|g)$/.test(name) ? "protein"
           : /^(毫升|ml)$/.test(name) ? "water" : "";
+        const labelField = /^(intake|摄入|热量)$/i.test(prefix) ? "intake"
+          : /^(weight|体重)$/i.test(prefix) ? "weight"
+          : /^(protein|蛋白质)$/i.test(prefix) ? "protein"
+          : /^(water|饮水)$/i.test(prefix) ? "water" : "";
+        if (labelField && unitField && labelField !== unitField) return null;
+        const field = labelField || unitField;
         tokens.push({ value: match[0], field, index: match.index });
       }
       return tokens;
