@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="480" viewBox="0 0 1440 480" role="img" aria-labelledby="title desc">
+<title id="title">NutriFlow — a calmer view of daily progress</title><desc id="desc">Original botanical illustration with four abstract daily measurement marks, not a medical recommendation or an app screenshot.</desc>
+<defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#f7f4e9"/><stop offset="1" stop-color="#e5eee2"/></linearGradient></defs>
+<rect width="1440" height="480" rx="24" fill="url(#bg)"/><circle cx="1102" cy="232" r="212" fill="#d5e2cf" fill-opacity=".6"/><circle cx="1102" cy="232" r="167" fill="none" stroke="#a6bca3" stroke-width="1"/>
+<g font-family="Segoe UI,Arial,sans-serif"><text x="76" y="91" fill="#5c7c60" font-size="15" font-weight="600" letter-spacing="4">SMALL ENTRIES, A CLEARER PICTURE</text><text x="70" y="206" fill="#244d3b" font-size="86" font-weight="700">NutriFlow</text><text x="76" y="267" fill="#496753" font-size="28">Make room for everyday progress.</text><text x="76" y="319" fill="#657b68" font-size="20">A calm, local-first nutrition and weight tracker.</text>
+<path d="M76 360H650" stroke="#bacaaf"/><text x="76" y="401" fill="#496752" font-size="15" letter-spacing="2">NUTRITION</text><circle cx="214" cy="395" r="3" fill="#9b8c62"/><text x="239" y="401" fill="#496752" font-size="15" letter-spacing="2">HYDRATION</text><circle cx="383" cy="395" r="3" fill="#9b8c62"/><text x="408" y="401" fill="#496752" font-size="15" letter-spacing="2">WEIGHT</text></g>
+<path d="M1075 387c-39-107-14-203 68-286" fill="none" stroke="#526f4e" stroke-width="5" stroke-linecap="round"/>
+<path d="M1081 303c-76-9-112-55-100-112 68 0 116 46 100 112" fill="#7fa27c"/><path d="M1081 251c7-73 52-118 114-110-1 67-46 113-114 110" fill="#adc599"/><path d="M1113 180c-52-23-72-62-52-103 50 13 76 57 52 103" fill="#688b66"/>
+<path d="M999 214l72 77M1100 233l74-71M1077 102l29 65" fill="none" stroke="#e7edda" stroke-width="2" stroke-linecap="round"/>
+<g fill="#f8f8ef" stroke="#bbccb0"><circle cx="927" cy="331" r="43"/><circle cx="1239" cy="306" r="45"/><circle cx="1296" cy="161" r="31"/></g>
+<path d="M927 306c-12 18-20 25-20 34a20 20 0 0040 0c0-9-8-16-20-34z" fill="#88aca8"/><path d="M1218 309l14 14 28-33" fill="none" stroke="#819b65" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="1296" cy="161" r="13" fill="none" stroke="#d6ad74" stroke-width="7"/><path d="M824 100c14-11 29-11 41 0M1318 395c14-11 29-11 41 0" fill="none" stroke="#bac9a9" stroke-width="2"/>
+</svg>

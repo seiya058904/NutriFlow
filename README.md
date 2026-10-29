@@ -1,6 +1,10 @@
 <h1 align="center">🌿 NutriFlow</h1>
 
 <p align="center">
+  <img src="readme-cover.svg" width="100%" alt="Original botanical cover with calm green leaves and daily measurement symbols" />
+</p>
+
+<p align="center">
   <strong>Small daily entries. A clearer view of your progress.</strong>
 </p>
 
@@ -128,6 +132,26 @@ NutriFlow stores your records and preferences in the **current browser's `localS
 - Full-backup restoration has rollback and recovery-journal safeguards. If recovery remains unresolved, persistent writes are paused rather than risking further damage.
 
 These safeguards protect data integrity, but they do not replace keeping a separate exported backup.
+
+<details>
+<summary><strong>Try an import: two small, copy-ready examples</strong></summary>
+
+**CSV or tab-separated rows** use this fixed order: `date, intake (kcal), weight (kg), protein (g), water (ml)`. Keep an empty column when a measurement is missing; do not shift later values left. These sample rows omit a header:
+
+```csv
+2026-01-01,1800,70.0,100,2000
+2026-01-02,1750,,105,2100
+```
+
+**Labeled plain text** can omit optional measurements and use a different order:
+
+```text
+2026-01-02 protein 105g intake 1750kcal water 2100ml
+```
+
+Choose one example for the preview, check the field values, then confirm the import. These are sample records, not recommended personal targets.
+
+</details>
 
 <a id="for-developers"></a>
 ## ⚙️ For Developers
