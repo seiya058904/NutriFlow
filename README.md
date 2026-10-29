@@ -82,7 +82,7 @@ Record what matters to you, then return to see how the days fit together.
 <a id="choose-your-entry"></a>
 ## 💻 One Tracker. Two Ways to Open It.
 
-No application server, account, or package installation is required for everyday use.
+No application server, account, or package installation is required for everyday use. The interface is in **Simplified Chinese**; this guide is in English.
 
 <table>
   <tr>
@@ -95,7 +95,7 @@ No application server, account, or package installation is required for everyday
     <td width="50%" valign="top">
       <h3>📄 Offline — One HTML File</h3>
       <p><sub>NO BACKEND · NO BUILD STEP</sub></p>
-      <p>Download <a href="NutriFlow.html"><code>NutriFlow.html</code></a> and open it directly in a compatible browser. The tracker itself needs no network connection or installed dependencies.</p>
+      <p>Open <a href="NutriFlow.html"><code>NutriFlow.html</code></a>, use GitHub's <strong>Download raw file</strong> button, then open the saved file in a compatible browser. The tracker itself needs no network connection or installed dependencies.</p>
       <p><strong><a href="NutriFlow.html">View the standalone file →</a></strong></p>
     </td>
   </tr>
