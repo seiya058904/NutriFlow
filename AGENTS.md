@@ -35,10 +35,13 @@ CSV/TSV 文件以及含英文逗号或制表符的文本由 `parseImportColumns`
 
 ## 视觉与移动端稳定规则
 
-- 复用既有主题令牌（`--progress-card-bg`、`--progress-track-bg`、`--marker-ring` 等），不要重新硬编码浅色值；暗色达成度卡/标记白圈问题用这些令牌修复。
+- 视觉为 iOS 风格单层设计系统：`<style>` 按 tokens → base → layout → components → motion → responsive 组织，只有一处 `:root` / `[data-theme="dark"]` 令牌定义；不要在文件末尾追加覆盖层。暗色为 iOS 纯黑/石墨（页面 `#000`、卡片 `#1C1C1E`）。
+- 复用既有主题令牌（`--progress-track-bg`、`--marker-ring`、`--fill-*`、`--metric-*`、`--chart-*` 等），不要重新硬编码颜色；JS 生成的 SVG 图表颜色也必须用 `var(--chart-…)`，白芯点用 `--chart-point-core`。
+- 图表 viewBox 由 `chartViewportWidth()` 按容器宽度选择（窄屏 380，否则 760；无布局宽度时回退 760），窗口跨档位才重绘。
+- ≤620px 显示底部毛玻璃 Tab 栏（`#tabBar`，滚动定位而非隐藏区块）；滚动越过大标题后出现顶部紧凑导航条（`#compactBar`）。两者只做导航，不改变数据流，所有区块始终在 DOM 中。
+- 动效统一使用 `--ease-ios` / `--ease-spring`，并受 `prefers-reduced-motion` 全局约束。
 - 移动端结论必须用真实视口仿真验证：桌面 headless Chrome 受最小窗宽/DPI 限制，≤390px 媒体查询在带滚动条环境下不保证触发，因此移动规则并入 ≤620px 断点，验证也按对应断点进行。
 - 日历 `today` class 必须在渲染时动态取当天日期，并在标签页跨午夜唤醒时重新同步（`visibilitychange`/`pageshow`），不要启动时长期缓存。
-- **下一轮视觉工作**（用户明确指示）是独立的设计层优化，聚焦两个问题：统计卡 12 格的单调感/分组、导入/导出按钮组层级不够明显。在此之前不要把它们当作小修顺手处理，也不要自行扩展其他视觉范围。
 
 ## 代码风格与修改边界
 
