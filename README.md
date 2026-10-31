@@ -1,8 +1,8 @@
-<h1 align="center">🌿 NutriFlow</h1>
-
 <p align="center">
   <img src="readme-cover.svg" width="100%" alt="Original botanical cover with calm green leaves and daily measurement symbols" />
 </p>
+
+<h1 align="center">🌿 NutriFlow</h1>
 
 <p align="center">
   <strong>Small daily entries. A clearer view of your progress.</strong>
