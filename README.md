@@ -1,6 +1,10 @@
 <h1 align="center">🌿 NutriFlow</h1>
 
 <p align="center">
+  <img src="docs/screenshots/desktop-light.jpg" width="100%" alt="NutriFlow on desktop in light mode: grouped entry form with target progress, today's intake, protein, water and weight cards, and a 30-day intake trend chart" />
+</p>
+
+<p align="center">
   <img src="readme-cover.svg" width="100%" alt="Original botanical cover with calm green leaves and daily measurement symbols" />
 </p>
 
@@ -44,11 +48,7 @@
 <a id="a-look-inside"></a>
 ## 📸 A Look Inside
 
-An iOS-inspired interface: grouped entry form, at-a-glance daily cards, and a trend chart with your 7-day average and personal target.
-
-<p align="center">
-  <img src="docs/screenshots/desktop-light.jpg" width="100%" alt="NutriFlow on desktop in light mode: grouped entry form with target progress, today's intake, protein, water and weight cards, and a 30-day intake trend chart" />
-</p>
+An iOS-inspired interface: grouped entry form, at-a-glance daily cards, and a trend chart with your 7-day average and personal target (shown at the top of this page).
 
 On phones, a frosted bottom tab bar jumps between sections, and the dark mode follows the iOS graphite palette.
 
