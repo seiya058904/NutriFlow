@@ -1644,7 +1644,7 @@
     .day-target-dots {
       position: absolute;
       left: 50%;
-      bottom: 3px;
+      bottom: 6px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -1664,6 +1664,12 @@
       box-shadow: none;
     }
 
+    /* 状态色必须压过 .target-marker 的默认灰底 */
+    .target-marker.target-status-good { background: var(--fill-good); }
+    .target-marker.target-status-warn { background: var(--fill-warn); }
+    .target-marker.target-status-low { background: var(--fill-low); }
+    .target-marker.target-status-none { background: var(--fill-none); }
+
     .target-marker.metric-intake { border-radius: 50%; }
     .target-marker.metric-water { border-radius: 50%; }
 
@@ -1678,8 +1684,10 @@
       border-radius: 2px;
     }
 
+    /* 选中日按 iOS 习惯用纯白小点；具体达成情况见下方回顾区 */
     .day.selected .target-marker {
-      box-shadow: 0 0 0 1.5px #fff;
+      background: rgba(255, 255, 255, 0.92);
+      box-shadow: none;
     }
 
     .review {
