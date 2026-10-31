@@ -16,6 +16,8 @@
 <p align="center">
   <a href="https://seiya058904.github.io/NutriFlow/"><strong>▶ Open NutriFlow</strong></a>
   &nbsp;·&nbsp;
+  <a href="#a-look-inside">📸 Screenshots</a>
+  &nbsp;·&nbsp;
   <a href="#the-daily-picture">📊 What You Track</a>
   &nbsp;·&nbsp;
   <a href="#choose-your-entry">💻 Online or Offline</a>
@@ -38,6 +40,40 @@
 > **Consistency is easier to understand when you can see it.**
 >
 > NutriFlow brings everyday records and longer-term changes into one quiet workspace. It is a personal tracking tool—not a calorie prescription, a diet plan, or a substitute for medical advice.
+
+<a id="a-look-inside"></a>
+## 📸 A Look Inside
+
+An iOS-inspired interface: grouped entry form, at-a-glance daily cards, and a trend chart with your 7-day average and personal target.
+
+<p align="center">
+  <img src="docs/screenshots/desktop-light.jpg" width="100%" alt="NutriFlow on desktop in light mode: grouped entry form with target progress, today's intake, protein, water and weight cards, and a 30-day intake trend chart" />
+</p>
+
+On phones, a frosted bottom tab bar jumps between sections, and the dark mode follows the iOS graphite palette.
+
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <img src="docs/screenshots/mobile-light.jpg" width="300" alt="NutriFlow on a phone in light mode: today's overview cards and the intake trend, with the bottom tab bar" /><br>
+      <sub>Overview &amp; trends</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src="docs/screenshots/mobile-dark.jpg" width="300" alt="NutriFlow on a phone in dark mode: monthly calendar with colored target markers and the selected day's review" /><br>
+      <sub>Calendar with daily target markers</sub>
+    </td>
+  </tr>
+</table>
+
+<details>
+<summary><strong>🌙 Dark mode on desktop</strong></summary>
+<br>
+<p align="center">
+  <img src="docs/screenshots/desktop-dark.jpg" width="100%" alt="NutriFlow on desktop in dark mode: calendar, the selected day's values, and grouped statistics for the latest day, the last 7 days and long-term trends" />
+</p>
+</details>
+
+<p align="center"><sub>Screenshots use synthetic demo data.</sub></p>
 
 <a id="the-daily-picture"></a>
 ## 📊 The Daily Picture
@@ -76,6 +112,7 @@ Record what matters to you, then return to see how the days fit together.
 - **📅 Calendar & streaks** — Review when you recorded information and keep your history easy to navigate.
 - **📈 Trends at different scales** — Switch between 7-day, 30-day, and full-history views.
 - **🌗 Light & dark** — Choose the visual theme that suits your workspace.
+- **📱 Made for phones too** — A bottom tab bar, large touch targets, and charts that stay readable on narrow screens.
 - **📥 Flexible imports** — Bring in existing records from supported text, CSV, or JSON formats, with a preview before applying changes.
 - **🛡️ Reliable feedback** — Failed saves are surfaced instead of presenting an unsaved change as successful.
 
