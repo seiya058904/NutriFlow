@@ -56,3 +56,8 @@ CSV/TSV 文件以及含英文逗号或制表符的文本由 `parseImportColumns`
 ## Agent 工作规则
 
 修改前阅读相关实现并给出简短计划；优先小范围、可审查、可回退的改动，不顺手改变业务规则、默认值或兼容行为。保留用户已有未提交修改，禁止擅自安装依赖、全仓格式化、自动修复、提交、推送、部署、发布、创建 Release 或数据库操作。提交前确认变更仅覆盖当前任务、无 secrets/调试产物、必要验证已完成且未运行项已说明；commit 与 push 必须先获明确授权。
+
+## Browser tool selection
+
+- Prefer Ego Browser for exploratory navigation, visual review and interactive checks when available. Use Playwright for repeatable regression, CI, isolation, request interception or other automation requiring its APIs; combine tools when useful. If Ego is unavailable, use a suitable existing browser tool.
+- Keep this repository's required browser commands, versions, profiles and safety boundaries; an exploratory check does not replace required automated tests. Do not alter real user data or production state for testing. Report the tools, coverage and any untested paths.
