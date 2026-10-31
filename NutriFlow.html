@@ -214,6 +214,7 @@
     }
 
     :focus-visible {
+      outline: 3px solid var(--accent);
       outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
       outline-offset: 2px;
     }
@@ -254,6 +255,7 @@
       padding: 12px 16px;
       border-radius: var(--radius-md);
       color: var(--danger);
+      background: var(--surface-primary);
       background: color-mix(in srgb, var(--fill-low) 12%, var(--surface-primary));
       font-size: 14px;
       font-weight: 600;
@@ -2074,6 +2076,7 @@
     }
 
     .file-label:focus-within {
+      outline: 3px solid var(--accent);
       outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
       outline-offset: 2px;
     }
@@ -5278,12 +5281,14 @@ ${viewButtons}
 
     let scrollFrame = 0;
     let scrollIdleTimer = 0;
+    // Tab 触发的平滑滚动期间不重算高亮，避免途经区块时 Tab 闪烁。
+    let tabScrollLockUntil = 0;
     window.addEventListener("scroll", () => {
       if (scrollFrame) return;
       scrollFrame = window.requestAnimationFrame(() => {
         scrollFrame = 0;
         syncCompactBar();
-        if (isCompactLayout()) syncActiveTab();
+        if (isCompactLayout() && Date.now() > tabScrollLockUntil) syncActiveTab();
       });
       document.body.classList.add("is-scrolling");
       window.clearTimeout(scrollIdleTimer);
@@ -5294,6 +5299,7 @@ ${viewButtons}
       const item = event.target.closest("[data-tab-target]");
       if (!item) return;
       setActiveTab(item.dataset.tabTarget);
+      tabScrollLockUntil = Date.now() + (prefersReducedMotion() ? 0 : 900);
       scrollToSection(item.dataset.tabTarget);
     });
 
