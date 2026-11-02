@@ -235,3 +235,7 @@ NutriFlow is a **personal record-keeping tool**, not a medical or nutritional re
   <sub>TRACK THE ESSENTIALS. NOTICE THE PATTERNS. KEEP YOUR DATA.</sub><br>
   <sub>NutriFlow · A quieter place for your daily progress.</sub>
 </p>
+
+## Website analytics
+
+The public website uses Cloudflare Web Analytics for aggregate page visits and performance. The beacon loads only on `seiya058904.github.io`; local previews and offline copies do not load it. No game saves, journal entries, map contents, or form values are passed to the analytics integration. Statistics start after deployment and do not recover earlier traffic. See [Cloudflare's privacy policy](https://www.cloudflare.com/privacypolicy/).
